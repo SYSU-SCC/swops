@@ -2,7 +2,7 @@
 Only change the makefile and add a main.c
 
 # ToDo
-GEMM RRR RCR CRR
+GEMM RRR RCR CRR  
 BMM RRR RCR CRR
 
 # BMM RRR Result at Sep 8th 2021
