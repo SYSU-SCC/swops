@@ -3,9 +3,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include "args.h"
-extern SLAVE_FUN(sysu_slave_rrr_bmm)(sw_bmmPara_t);
+extern SLAVE_FUN(sw_slave_gemm_rrr)(sw_bmmPara_t);
+extern SLAVE_FUN(sw_slave_gemm_rcr)(sw_bmmPara_t);
+extern SLAVE_FUN(sw_slave_gemm_rcr_f32)(sw_bmmPara_t);
+extern SLAVE_FUN(sw_slave_bmm_rrr)(sw_bmmPara_t);
 extern SLAVE_FUN(sw_slave_mm_AB)(swptex_mmPara_t);
 extern SLAVE_FUN(sw_slave_mm_ATB)(swptex_mmPara_t);
 extern SLAVE_FUN(sw_slave_mm_ABT)(swptex_mmPara_t);
@@ -46,38 +48,189 @@ int swptex_mm(const void *A, const void *B, void *C, size_t M, size_t N,
     athread_join_cgs();
 }
 
-void sw_bmm()
-{
+void check_copy_border_f32(const float* A, const float* Ap, const float* Aq,
+                           const int M, const int Ms, const int Me, const int blk_M,
+                           const int K, const int Ks, const int Ke, const int blk_K){
+    //check Ap using 0
+    printf("checking copy border \n");
+    for(int m = 0; m < Ms; m++){
+        for(int k = 0; k < blk_K; k++){
+            if(k >= K - Ks && Ap[m * blk_K + k] != 0){
+                printf("Ap check fail m %d k %d value: %f\n", m, k, Ap[m * blk_K + k]);
+                printf("checking copy border error\n");
+                return;
+            }
+        }
+    }
+    for(int m = 0; m < M - Ms; m++){
+        for(int k = 0; k < Ke; k++){
+            if(k >= K && Aq[m * Ke + k] != 0){
+                printf("Aq check fail m %d k %d value: %f\n", m, k, Aq[m * Ke +k]);
+                printf("checking copy border error\n");
+                return;
+            }
+        }
+    }
+    for(int m = M - Ms; m < Me - Ms; m++){
+        for(int k = 0; k < Ke; k++){
+            if(Aq[m * Ke + k] != 0){
+                printf("Aq check at master fail m %d k %d value: %f\n", m, k, Aq[m * Ke +k]);
+                printf("checking copy border error\n");
+                return;
+            }
+        }
+    }
+    //check Ap using general value
+    for(int m = 0; m < Ms; m++){
+        for(int k = Ks; k < K; k++){
+            if(A[m * K + k] != Ap[m * blk_K + k - Ks]){
+                printf("check Ap general error at m %d k %d A: %f Ap: %f\n", m, k, A[m * K + k], Ap[m * blk_K + k - Ks]);
+                printf("checking copy border error\n");
+                return;
+            }
+        }
+    }
+    //check Aq using general value
+    for(int m = Ms; m < M; m++){
+        for(int k = 0; k < K; k++){
+            if(A[m * K + k] != Aq[(m - Ms) * Ke + k]){
+                printf("check Aq general error at m %d k %d A: %f Aq: %f\n", m, k, A[m * K + k], Aq[(m - Ms) * Ke + k]);
+                printf("checking copy border error\n");
+                return;
+            }
+        }
+    }
+    printf("checking copy border passed\n");
 }
 
-void test_bmm(void)
-{
-    printf("test batch mm\n");
-    int M = 96;
-    int N = 96;
-    int K = 96;
-    int blkM = 64;
-    int blkN = 64;
-    int blkK = 64;
-    int bn = 1024;//384
+void test_gemm_rcr(){
+    printf("test gemm\n");
+    int M = 4333;
+    int N = 600;
+    int K = 600;
+    int blk_M = 512;
+    int blk_N = 512;
+    int blk_K = 512;
+    int bn = 6;// six gemm
     float *A = malloc(sizeof(float) * bn * M * K);
     float *B = malloc(sizeof(float) * bn * K * N);
     float *C = malloc(sizeof(float) * bn * M * N);
     float *check_C = malloc(sizeof(float) * bn * M * N);
-    for (int i = 0; i < bn * M * K; i++)
-    {
+    for (int i = 0; i < bn * M * K; i++){
         A[i] = rand()*1.0/RAND_MAX;
     }
-    for (int i = 0; i < bn * K * N; i++)
-    {
-        B[i] = rand()*1.0/RAND_MAX;
+    for (int i = 0; i < bn * K * N; i++){
+        B[i] = 1.0;
     }
-    for (int i = 0; i < bn * M * N; i++)
-    {
+    for (int i = 0; i < bn * M * N; i++){
         C[i] = 0;
     }
-    for (int i = 0; i < bn * M * N; i++)
-    {
+    for (int i = 0; i < bn * M * N; i++){
+        check_C[i] = 0;
+    }
+    int Ms = (M / blk_M) * blk_M;
+    int Ns = (N / blk_N) * blk_N;
+    int Ks = (K / blk_K) * blk_K;
+    int Me = M % blk_M != 0 ? Ms + blk_M : Ms;
+    int Ne = N % blk_N != 0 ? Ns + blk_N : Ns;
+    int Ke = K % blk_K != 0 ? Ks + blk_K : Ks;
+
+    printf("blk_M %d blk_N %d blk_K %d\nM %d Ms %d Me %d\nN %d Ns %d Ne %d\nK %d Ks %d Ke %d\nbatch: %d\n", 
+            blk_M, blk_N, blk_K, M, Ms, Me, N, Ns, Ne, K, Ks, Ke, bn);
+    
+    float* Ap = malloc(sizeof(float) * bn * Ms * blk_K);
+    float* Aq = malloc(sizeof(float) * bn * blk_M * Ke);
+    float* Bp = malloc(sizeof(float) * bn * Ns * blk_K);
+    float* Bq = malloc(sizeof(float) * bn * blk_N * Ke);
+    float* Cp = malloc(sizeof(float) * bn * Ms * blk_N);
+    float* Cq = malloc(sizeof(float) * bn * blk_M * Ne);
+
+    sw_gemmPara para;
+    para.counts = bn;
+    para.blk_M = blk_M;
+    para.blk_N = blk_N;
+    para.blk_K = blk_K;
+    para.A = A;
+    para.Ap = Ap;
+    para.Aq = Aq;
+    para.B = B;
+    para.Bp = Bp;
+    para.Bq = Bq;
+    para.C = C;
+    para.Cp = Cp;
+    para.Cq = Cq;
+    para.M = M;
+    para.Ms = Ms;
+    para.Me = Me;
+    para.N = N;
+    para.Ns = Ns;
+    para.Ne = Ne;
+    para.K = K;
+    para.Ks = Ks;
+    para.Ke = Ke;
+    para_cross = &para;
+
+    int ret = athread_init_cgs();
+    ret = athread_spawn_cgs(sw_slave_gemm_rcr_f32, &para);
+    athread_join_cgs();
+
+    check_copy_border_f32(A, Ap, Aq, M, Ms, Me, blk_M, K, Ks, Ke, blk_K);
+
+    check_copy_border_f32(B, Bp, Bq, N, Ns, Ne, blk_N, K, Ks, Ke, blk_K);
+
+    check_copy_border_f32(C, Cp, Cq, M, Ms, Me, blk_M, N, Ns, Ne, blk_N);
+
+    if(((blk_M * blk_K) % 64) != 0 || ((blk_K * blk_N) % 64) != 0 || ((blk_M * blk_N) % 64) != 0){
+        printf("error: blk_M %d blk_N %d blk_K %d\n", blk_M, blk_N, blk_K);
+    }
+    else{
+        printf("M %d N %d K %d blk_M %d blk_N %d blk_K %d batch: %d\n", M, N, K, blk_M, blk_N, blk_K, bn);
+        ret = athread_init_cgs();
+        ret = athread_spawn_cgs(sw_slave_gemm_rcr, &para);
+        athread_join_cgs();
+    }
+    struct timeval tv1, tv2;
+    gettimeofday(&tv1, NULL);
+    //swptex_bmm(A,B,check_C,bn,M,N,K,0,0);
+    gettimeofday(&tv2, NULL);
+    double origin_seconds = (tv2.tv_sec - tv1.tv_sec) + (tv2.tv_usec - tv1.tv_usec) * 1.0e-6;
+    printf("gemm original: %lf\n", origin_seconds);
+    free(A);
+    free(Ap);
+    free(Aq);
+    free(B);
+    free(Bp);
+    free(Bq);
+    free(C);
+    free(Cp);
+    free(Cq);
+    free(check_C);
+
+}
+
+void test_bmm(void){
+    printf("test batch mm\n");
+    int M = 96;
+    int N = 96;
+    int K = 96;
+    int blk_M = 96;
+    int blk_N = 96;
+    int blk_K = 96;
+    int bn = 768;//384
+    float *A = malloc(sizeof(float) * bn * M * K);
+    float *B = malloc(sizeof(float) * bn * K * N);
+    float *C = malloc(sizeof(float) * bn * M * N);
+    float *check_C = malloc(sizeof(float) * bn * M * N);
+    for (int i = 0; i < bn * M * K; i++){
+        A[i] = rand()*1.0/RAND_MAX;
+    }
+    for (int i = 0; i < bn * K * N; i++){
+        B[i] = rand()*1.0/RAND_MAX;
+    }
+    for (int i = 0; i < bn * M * N; i++){
+        C[i] = 0;
+    }
+    for (int i = 0; i < bn * M * N; i++){
         check_C[i] = 0;
     }
     struct timeval tv1, tv2;
@@ -96,37 +249,41 @@ void test_bmm(void)
     para.M = M;
     para.N = N;
     para.K = K;
-    para.blkM = blkM;
-    para.blkN = blkN;
-    para.blkK = blkK;
+    para.blk_M = blk_M;
+    para.blk_N = blk_N;
+    para.blk_K = blk_K;
     para.counts = bn;
     para_cross = &para;
-    int LDM_size_Ax2 = 2 * para.blkM * para.blkK *sizeof(float);
-    int LDM_size_Bx2 = 2 * para.blkK * para.blkN *sizeof(float);
-    int LDM_size_Cx2 = 2 * para.blkM * para.blkN *sizeof(float);
+    int LDM_size_Ax2 = 2 * para.blk_M * para.blk_K *sizeof(float);
+    int LDM_size_Bx2 = 2 * para.blk_K * para.blk_N *sizeof(float);
+    int LDM_size_Cx2 = 2 * para.blk_M * para.blk_N *sizeof(float);
     if(LDM_size_Ax2 + LDM_size_Bx2 + LDM_size_Cx2 >= 256 * 1024){
         printf("ldm_malloc error, size of blk: %d, max size: 262144\n",LDM_size_Ax2 + LDM_size_Bx2 + LDM_size_Cx2);
         return;
     }
     else{
-        printf("ldm_malloc size of blk: %d\n",LDM_size_Ax2 + LDM_size_Bx2 + LDM_size_Cx2);
-        printf("batch: %d\n",bn);
-    }
-    int ret = athread_init_cgs();
-    ret = athread_spawn_cgs(sysu_slave_rrr_bmm, &para);
-    athread_join_cgs();
-    gettimeofday(&tv2, NULL);
+        printf("ldm_malloc size of blk: %d, max size: 262144\n",LDM_size_Ax2 + LDM_size_Bx2 + LDM_size_Cx2);
+        printf("M %d N %d K %d blk_M %d blk_N %d blk_K %d batch: %d\n", M, N, K, blk_M, blk_N, blk_K, bn);
+        int ret = athread_init_cgs();
+        ret = athread_spawn_cgs(sw_slave_bmm_rrr, &para);
+        athread_join_cgs();
+        gettimeofday(&tv2, NULL);
 
-    double optimized_seconds = (tv2.tv_sec - tv1.tv_sec) + (tv2.tv_usec - tv1.tv_usec) * 1.0e-6;
-    //check results
-    for(int i = 0; i < bn * M * N; i++){
-        if(fabs(check_C[i] - C[i])>0.001){
-            printf("error at %d check_C: %f C %f\n", i, check_C[i], C[i]);
-            break;
+        double optimized_seconds = (tv2.tv_sec - tv1.tv_sec) + (tv2.tv_usec - tv1.tv_usec) * 1.0e-6;
+        //check results
+        for(int i = 0; i < bn * M * N; i++){
+            if(fabs(check_C[i] - C[i])>0.0001){
+                printf("error at %d check_C: %f C %f\n", i, check_C[i], C[i]);
+                break;
+            }
         }
+        printf("bmm original: %lf\n", origin_seconds);
+        printf("bmm optimized: %lf\n", optimized_seconds);
     }
-    printf("bmm original: %lf\n", origin_seconds);
-    printf("bmm optimized: %lf\n", optimized_seconds);
+    free(A);
+    free(B);
+    free(C);
+    free(check_C);
 }
 
 int swptex_bmm(const void *A, const void *B, void *C, size_t batch, size_t M,
