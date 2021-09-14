@@ -22,8 +22,12 @@ inline void sw_slave_gemm_copy_border_back_f32_cgn(const int CGN_id,
             printf("error in sw_slave_gemm_copy_border_f32_cgn\n blk_W: %d > 30720",blk_W);
         }
     }
+    
     size_t HW_size = H * W;
     if(CRTS_tid < 32){
+        if(Ws == We){
+            return;
+        }
         const int CPY_tid = CRTS_tid;
         const size_t Cols_P = Hs / 32;
         const float* start_A = A + CPY_tid * Cols_P * W + Ws;
@@ -65,6 +69,9 @@ inline void sw_slave_gemm_copy_border_back_f32_cgn(const int CGN_id,
         ldm_free(local_P,blk_P * blk_W * sizeof(float));
     }
     else{
+        if(Hs == He){
+            return;
+        }
         //printf("Cores %d Copying Border Back\n", CRTS_tid);
         const int CPY_tid = CRTS_tid - 32;// 0 ~ 32
         const size_t Cols_Q = blk_H / 32;
@@ -165,6 +172,9 @@ inline void sw_slave_gemm_copy_border_f32_cgn(const int CGN_id,
     size_t HW_size = H*W;
     if(CRTS_tid < 32){
         //do dstp
+        if(Ws == We){
+            return;
+        }
         const int CPY_tid = CRTS_tid;// 0 ~ 31
         const size_t Cols_P = Hs / 32;
         const float* src_P = src + CPY_tid * Cols_P * W + Ws;
@@ -209,6 +219,9 @@ inline void sw_slave_gemm_copy_border_f32_cgn(const int CGN_id,
         ldm_free(local_P,blk_P * blk_W * sizeof(float));
     }
     else{
+        if(Hs == He){
+            return;
+        }
         const int CPY_tid = CRTS_tid - 32;// 0 ~ 32
         const size_t Cols_Q = blk_H / 32;
         const size_t num_Q = Cols_Q;
@@ -248,15 +261,12 @@ void sw_slave_gemm_rrr_cgn(const int CGN_id,
                            const float* A, const float* Ap,
                            const float* B, const float* Bp,
                            const float* C, const float* Cp,
-                           const size_t M, const size_t Ms, const size_t Me,
-                           const size_t N, const size_t Ns, const size_t Ne,
-                           const size_t K, const size_t Ks, const size_t Ke){
+                           const size_t M, const size_t Ms, const size_t Me, const size_t blk_M,
+                           const size_t N, const size_t Ns, const size_t Ne, const size_t blk_N,
+                           const size_t K, const size_t Ks, const size_t Ke, const size_t blk_K){
     if(CRTS_cgn != CGN_id){
         return;
     }
-    const size_t blk_M = Me - Ms;
-    const size_t blk_N = Ne - Ns;
-    const size_t blk_K = Ke - Ks;
 
     const int cid = CRTS_tid % 8;
     const int rid = CRTS_tid / 8;
@@ -516,15 +526,20 @@ void sw_slave_gemm_rrr_cgn(const int CGN_id,
                     }
                 }
             }
-            if(c_M == num_M - 1 || c_N == num_N - 1){
-                curr_C = start_Cp;
-                curr_N = Ne;
-                C_step = Ne - blk_N/8;
-            }
-            else{
+            if(curr_blk_M == blk_M && curr_blk_N == blk_N){
                 curr_C = start_C;
                 curr_N = N;
                 C_step = N - blk_N/8;
+            }
+            /* if(c_M == num_M - 1 || c_N == num_N - 1){
+                curr_C = start_Cp;
+                curr_N = Ne;
+                C_step = Ne - blk_N/8;
+            } */
+            else{
+                curr_C = start_Cp;
+                curr_N = Ne;
+                C_step = Ne - blk_N/8;
             }
             athread_dma_put_stride(curr_C + c_M * blk_M * curr_N + c_N * blk_N,
                                     local_C_dma,
@@ -579,9 +594,9 @@ void sw_slave_gemm_rrr_f32(sw_gemmPara *_){
     sw_slave_gemm_rrr_cgn(0,src_A, src_Ap, 
                             src_B, src_Bp, 
                             src_C, src_Cp,
-                            M, Ms, Me,
-                            N, Ns, Ne,
-                            K, Ks, Ke);
+                            M, Ms, Me, blk_M,
+                            N, Ns, Ne, blk_N,
+                            K, Ks, Ke, blk_K);
     athread_ssync_node();
     sw_slave_gemm_copy_border_back_f32_cgn(0, src_C, src_Cp, M, Ms, Me, blk_M, N, Ns, Ne, blk_N);
 }
