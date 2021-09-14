@@ -447,3 +447,54 @@ int swptex_scale(void *x_, size_t len, float scaling)
         x[i] *= scaling;
     }
 }
+    }
+    }
+}
+
+int swptex_split(const void *QKV_, void *QKVT_, size_t B, size_t N, size_t S,
+                 size_t D)
+{
+    float *QKV = (float *)QKV_;
+    float *QKVT = (float *)QKVT_;
+    int b, n, s;
+    for (b = 0; b < B; ++b)
+    {
+        for (n = 0; n < N; ++n)
+        {
+            for (s = 0; s < S; ++s)
+            {
+                memcpy(QKVT + b * N * S * D + n * S * D + s * D,
+                       QKV + n * D + s * N * D + b * S * N * D, D * sizeof(float));
+            }
+        }
+    }
+}
+
+int swptex_merge(const void *QKV_, void *QKVT_, size_t B, size_t N, size_t S,
+                 size_t D)
+{
+    float *QKV = (float *)QKV_;
+    float *QKVT = (float *)QKVT_;
+    int b, n, s;
+    for (b = 0; b < B; ++b)
+    {
+        for (n = 0; n < N; ++n)
+        {
+            for (s = 0; s < S; ++s)
+            {
+                memcpy(QKVT + n * D + s * N * D + b * S * N * D,
+                       QKV + b * N * S * D + n * S * D + s * D, D * sizeof(float));
+            }
+        }
+    }
+}
+
+int swptex_scale(void *x_, size_t len, float scaling)
+{
+    float *x = (float *)x_;
+    int i;
+    for (i = 0; i < len; ++i)
+    {
+        x[i] *= scaling;
+    }
+}

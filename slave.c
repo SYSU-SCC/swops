@@ -813,3 +813,252 @@ void sw_slave_mm_ATB(swptex_mmPara *_)
         }
     }
 }
+em_blk_K;
+                    if(c_N * num_M * num_K + c_M * num_K + c_K +1 < num_M * num_N * num_K){//still in local_now
+                        next_blk_M = curr_blk_M;
+                        next_blk_N = curr_blk_N;
+                        next_blk_K = curr_blk_K;
+                        if(c_K == num_K - 2){
+                            next_blk_K = rem_blk_K;
+                        }
+                        if(c_K == num_K - 1){
+                            next_blk_K = blk_K;
+                            if(c_N == num_N - 2){
+                                next_blk_N = rem_blk_N;
+                            }
+                            if(c_N == num_N - 1){
+                                next_blk_N = blk_N;
+                                if(c_M == num_M - 2){
+                                    next_blk_M = rem_blk_M;
+                                }
+                                if(c_M == num_M - 1){//to local_now + 1
+                                    next_blk_M = blk_M;
+                                }
+                            }
+                        }
+                        if(c_K == num_K - 1){
+                            if(c_N == num_N - 1){
+                                athread_dma_iget_stride(local_A + (double_buffer_flag_AB * local_A_size),
+                                                        start_A + (c_M + 1) * blk_M * K + 0 * blk_K,
+                                                        sizeof(float) * next_blk_M * next_blk_K,
+                                                        sizeof(float) * next_blk_K,
+                                                        sizeof(float) * (K - next_blk_K),
+                                                        &reply_get_A);
+                                athread_dma_iget_stride(local_B + (double_buffer_flag_AB * local_B_size),
+                                                        start_B,
+                                                        sizeof(float) * next_blk_K * next_blk_N,
+                                                        sizeof(float) * next_blk_N,
+                                                        sizeof(float) * (N - next_blk_N),
+                                                        &reply_get_B);
+                                /* if(_MYID == 3){
+                                    printf("c_M %d c_N %d c_K %d Get A: %d Get B: %d next_blk_M %d next_blk_N %d next_blk_K %d\n",
+                                            c_M, c_N, c_K, (c_M + 1) * blk_M * K + 0 * blk_K, 0, next_blk_M, next_blk_N, next_blk_K);
+                                } */
+                            }
+                            else{
+                                athread_dma_iget_stride(local_A + (double_buffer_flag_AB * local_A_size),
+                                                        start_A + (c_M * blk_M * K) + 0 * blk_K,
+                                                        sizeof(float) * next_blk_M * next_blk_K,
+                                                        sizeof(float) * next_blk_K,
+                                                        sizeof(float) * (K - next_blk_K),
+                                                        &reply_get_A);
+                                athread_dma_iget_stride(local_B + (double_buffer_flag_AB * local_B_size),
+                                                        start_B + 0 * blk_K * N + (c_N + 1) * blk_N,
+                                                        sizeof(float) * next_blk_K * next_blk_N,
+                                                        sizeof(float) * next_blk_N,
+                                                        sizeof(float) * (N - next_blk_N),
+                                                        &reply_get_B);
+                                /* if(_MYID == 3){
+                                    printf("c_M %d c_N %d c_K %d Get A: %d Get B: %d next_blk_M %d next_blk_N %d next_blk_K %d\n",
+                                            c_M, c_N, c_K, (c_M * blk_M * K) + 0 * blk_K, 0 * blk_K * N + (c_N + 1) * blk_N, next_blk_M, next_blk_N, next_blk_K);
+                                } */
+                            }
+                        }
+                        else{
+                            athread_dma_iget_stride(local_A + (double_buffer_flag_AB * local_A_size),
+                                                    start_A + (c_M * blk_M * K) + (c_K +1) * blk_K,
+                                                    sizeof(float) * next_blk_M * next_blk_K,
+                                                    sizeof(float) * next_blk_K,
+                                                    sizeof(float) * (K - next_blk_K),
+                                                    &reply_get_A);
+                            athread_dma_iget_stride(local_B + (double_buffer_flag_AB * local_B_size),
+                                                    start_B + (c_K + 1) * blk_K * N + (c_N * blk_N),
+                                                    sizeof(float) * next_blk_K * next_blk_N,
+                                                    sizeof(float) * next_blk_N,
+                                                    sizeof(float) * (N - next_blk_N),
+                                                    &reply_get_B);
+                            /* if(_MYID == 3){
+                                printf("c_M %d c_N %d c_K %d Get A: %d Get B: %d next_blk_M %d next_blk_N %d next_blk_K %d\n",
+                                        c_M, c_N, c_K, (c_M * blk_M * K) + (c_K +1) * blk_K, (c_K + 1) * blk_K * N + (c_N * blk_N), next_blk_M, next_blk_N, next_blk_K);
+                            } */
+                        }
+                    }
+                    else if(local_now < local_end - 1){
+                        athread_dma_iget_stride(local_A + (double_buffer_flag_AB * local_A_size), 
+                                                start_A + MK_size, 
+                                                sizeof(float) * blk_M * blk_K, 
+                                                sizeof(float) * blk_K, 
+                                                sizeof(float) * (K - blk_K),
+                                                &reply_get_A);
+                        athread_dma_iget_stride(local_B + (double_buffer_flag_AB * local_A_size), 
+                                                start_B + KN_size, 
+                                                sizeof(float) * blk_K * blk_N, 
+                                                sizeof(float) * blk_N, 
+                                                sizeof(float) * (N - blk_N),
+                                                &reply_get_B);
+                        /* if(_MYID == 3){
+                            printf("local_now < local_end - 1\n");
+                            printf("c_M %d c_N %d c_K %d Get A: %d Get B: %d next_blk_M %d next_blk_N %d next_blk_K %d\n",
+                                    c_M, c_N, c_K, MK_size, KN_size, next_blk_M, next_blk_N, next_blk_K);
+                        } */
+                    }
+                    /* for(int i = 0; i < curr_blk_M * curr_blk_K; i++){
+                        if(local_A[(1 - double_buffer_flag_AB) * local_A_size + i]!=1.0){
+                            printf("Slave %d compute c_M %d c_N %d c_K %d error at %d local_A value %lf\n", 
+                                    _MYID, c_M, c_N, c_K, i, local_A[(1 - double_buffer_flag_AB) * local_A_size + i]);
+                            break;
+                        }
+                    } */
+                    /* if(_MYID == 99){
+                    for(int i = 0; i < curr_blk_K * curr_blk_N; i++){
+                        if(local_B[(1 - double_buffer_flag_AB) * local_B_size + i]!=1.0){
+                            printf("Slave %d compute c_M %d c_N %d c_K %d error at %d local_B value %lf\n", 
+                                    _MYID, c_M, c_N, c_K, i, local_B[(1 - double_buffer_flag_AB) * local_B_size + i]);
+                            //break;
+                        }
+                    }
+                    } */
+                    for(int m = 0; m < curr_blk_M; m++)
+                        for(int n = 0; n < curr_blk_N; n++)
+                            for(int k = 0; k < curr_blk_K; k++){
+                                local_C[(1 - double_buffer_flag_C) * local_C_size + m * curr_blk_N + n]
+                             += local_A[(1 - double_buffer_flag_AB) * local_A_size + m * curr_blk_K + k]
+                              * local_B[(1 - double_buffer_flag_AB) * local_B_size + k * curr_blk_N + n];
+                            }
+                    //gemm
+                    //(1 - double_buffer_flag_AB) 
+                    //(1 - double_buffer_flag_C)
+                    /* if(_MYID == 0){
+                        printf("c_M %d c_N %d c_K %d curr_blk_M %d curr_blk_N %d curr_blk_K %d next_blk_M %d next_blk_N %d next_blk_K %d\n",
+                                c_M, c_N, c_K, curr_blk_M, curr_blk_N, curr_blk_K, next_blk_M, next_blk_N, next_blk_K);
+                    } */
+                    if(c_N * num_M * num_K + c_M * num_K + c_K +1 < num_M * num_N * num_K || local_now < local_end - 1){
+                        athread_dma_wait_value(&reply_get_A, 1);
+                        athread_dma_wait_value(&reply_get_B, 1);
+                        reply_get_A = 0;
+                        reply_get_B = 0;
+                        double_buffer_flag_AB = 1 - double_buffer_flag_AB;
+                    }
+                }
+                /* athread_dma_wait_value(&reply_put_C, 1);
+                reply_put_C = 0;
+                athread_dma_iput_stride(start_C + c_M * blk_M * N + c_N * blk_N,
+                                        local_C + (1 - double_buffer_flag_C) * local_C_size,
+                                        sizeof(float) * curr_blk_M * curr_blk_N,
+                                        sizeof(float) * curr_blk_N,
+                                        sizeof(float) * (N - curr_blk_N),
+                                        &reply_put_C);
+                double_buffer_flag_C = 1 - double_buffer_flag_C; */
+
+                //Without Double buffer
+                athread_dma_put_stride(start_C + c_M * blk_M * N + c_N * blk_N,
+                                       local_C + (1 - double_buffer_flag_C) * local_C_size,
+                                       sizeof(float) * curr_blk_M * curr_blk_N,
+                                       sizeof(float) * curr_blk_N,
+                                       sizeof(float) * (N - curr_blk_N));
+            }
+        }
+    }
+    ldm_free(local_A,sizeof(float) * blk_M * blk_K * 2);
+    ldm_free(local_B,sizeof(float) * blk_K * blk_N * 2);
+    ldm_free(local_C,sizeof(float) * blk_M * blk_N * 2);
+}
+void sw_slave_mm_ABT(swptex_mmPara *_){
+    int myid = CRTS_cgn * 64 + CRTS_tid;
+    swptex_mmPara *para = (swptex_mmPara *)para_cross;
+    const float *A = para->A;
+    const float *B = para->B;
+    float *C = para->C;
+    size_t M = para->M;
+    size_t N = para->N;
+    size_t K = para->K;
+    int i, j, k;
+    float temp;
+    int M_blk = M / thread_num;
+    int M_load = M_blk + (myid < M % thread_num ? 1 : 0);
+    int M_st = myid * M_blk + (myid < M % thread_num ? myid : M % thread_num);
+    float *local_A = A + M_st * K;
+    float *local_C = C + M_st * N;
+    for (i = 0; i < M_load; ++i)
+    {
+        for (j = 0; j < N; ++j)
+        {
+            temp = 0.f;
+            for (k = 0; k < K; ++k)
+            {
+                temp += local_A[i * K + k] * B[j * K + k];
+            }
+            local_C[i * N + j] = temp;
+        }
+    }
+}
+
+void sw_slave_mm_AB(swptex_mmPara *_)
+{
+    int myid = CRTS_cgn * 64 + CRTS_tid;
+    swptex_mmPara *para = (swptex_mmPara *)para_cross;
+    const float *A = para->A;
+    const float *B = para->B;
+    float *C = para->C;
+    size_t M = para->M;
+    size_t N = para->N;
+    size_t K = para->K;
+    int i, j, k;
+    float temp;
+    int M_blk = M / thread_num;
+    int M_load = M_blk + (myid < M % thread_num ? 1 : 0);
+    int M_st = myid * M_blk + (myid < M % thread_num ? myid : M % thread_num);
+    float *local_A = A + M_st * K;
+    float *local_C = C + M_st * N;
+    for (i = 0; i < M_load; ++i)
+    {
+        for (j = 0; j < N; ++j)
+        {
+            temp = 0.f;
+            for (k = 0; k < K; ++k)
+            {
+                temp += local_A[i * K + k] * B[k * N + j];
+            }
+            local_C[i * N + j] = temp;
+        }
+    }
+}
+
+void sw_slave_mm_ATB(swptex_mmPara *_)
+{
+    int myid = CRTS_cgn * 64 + CRTS_tid;
+    swptex_mmPara *para = (swptex_mmPara *)para_cross;
+    const float *A = para->A;
+    const float *B = para->B;
+    float *C = para->C;
+    size_t M = para->M;
+    size_t N = para->N;
+    size_t K = para->K;
+    int i, j, k;
+    float temp;
+    int M_blk = M / thread_num;
+    int M_load = M_blk + (myid < M % thread_num ? 1 : 0);
+    int M_st = myid * M_blk + (myid < M % thread_num ? myid : M % thread_num);
+    for (i = 0; i < M_load; ++i)
+    {
+        for (j = 0; j < N; ++j)
+        {
+            temp = 0.f;
+            for (k = 0; k < K; ++k)
+            {
+                temp += A[M_st + k * M + i] * B[k * N + j];
+            }
+            C[i * N + M_st * N + j] = temp;
+        }
+    }
+}
