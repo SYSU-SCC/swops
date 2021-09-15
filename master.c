@@ -366,6 +366,16 @@ void gemm_rcr_all_cgn(float* A, float* B, float* C,int M,int N,int K){
     int blk_N = 512;
     int blk_K = 512;
 
+    int local_A_LDM_size = blk_M * blk_K / 64;
+    int local_B_LDM_size = blk_K * blk_N / 64;
+    int local_C_LDM_size = blk_M * blk_N / 64;
+
+    int Total_LDM_size = 3 * sizeof(float) * (local_A_LDM_size + local_B_LDM_size + local_C_LDM_size);
+    if(Total_LDM_size > 210 * 1024){
+        printf("gemm_rcr_all_cgn Total_LDM_size > 210 * 1024 \n");
+        return;
+    }
+
     const int M_tot = M;
     const int Ms_tot = (M_tot / blk_M) * blk_M;
     const int Me_tot = M_tot % blk_M != 0 ? Ms_tot + blk_M : Ms_tot;
@@ -441,7 +451,6 @@ void test_gemm_real_rcr(){
     for (int i = 0; i < M * N; i++){
         check_C[i] = 0;
     }
-
     gemm_rcr_all_cgn(A,B,C,M,N,K);
     swptex_mm(A ,B ,check_C ,M ,N ,K , 0, 1);
     check_C_all_f32(C, check_C, M, N);
