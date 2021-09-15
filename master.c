@@ -11,8 +11,11 @@ extern SLAVE_FUN(sw_slave_mm_ABT)(swptex_mmPara_t);
 extern SLAVE_FUN(sw_slave_gemm_rrr_f32)(sw_gemmPara_t);
 
 extern SLAVE_FUN(sw_slave_gemm_rrr_all_cgn_f32)(sw_gemmPara_t);
+extern SLAVE_FUN(sw_slave_gemm_rcr_all_cgn_f32)(sw_gemmPara_t);
+extern SLAVE_FUN(sw_slave_gemm_trans_f32)(sw_gemmPara_t);
 extern SLAVE_FUN(sw_slave_padding_only_f32)(sw_gemmPara_t);
 extern SLAVE_FUN(sw_slave_bmm_rrr)(sw_bmmPara_t);
+extern SLAVE_FUN(swapNBHW_f)(swTransPara_t);
 
 extern void *para_cross; // param on cross seg
 
@@ -124,8 +127,8 @@ void check_copy_border_f32(const float* A, const float* Ap,
 }
 
 void check_C_all_f32(float* C, float* check_C, 
-                        const int M, const int Ms, const int Me, const int blk_M,
-                        const int N, const int Ns, const int Ne, const int blk_N){
+                        const int M,
+                        const int N){
     printf("checking C all\n");
     for(int m = 0; m < M; m++){
         for(int n = 0; n < N; n++){
@@ -238,7 +241,7 @@ void test_gemm_rrr(){
     printf("Result of GEMM RRR F32 hardware cache: %lf\n", origin_seconds);
 
     //check_copy_border_f32(check_C, Cp, M, Ms, Me, blk_M, N, Ns, Ne, blk_N);
-    check_C_all_f32(C, check_C, M, Ms, Me, blk_M, N, Ns, Ne, blk_N);
+    check_C_all_f32(C, check_C, M, N);
 
     free(A);
     free(Ap);
@@ -345,7 +348,7 @@ void test_gemm_rrr_all_cgn(){
     printf("Result of GEMM RRR F32 hardware cache: %lf\n", origin_seconds);
 
     //check_copy_border_f32(check_C, Cp, M, Ms, Me, blk_M, N, Ns, Ne, blk_N);
-    check_C_all_f32(C, check_C, M_tot, Ms_tot, Me_tot, blk_M, N, Ns, Ne, blk_N);
+    check_C_all_f32(C, check_C, M_tot, N);
 
     free(A);
     free(Ap);
@@ -357,14 +360,106 @@ void test_gemm_rrr_all_cgn(){
 
 }
 
+void gemm_rcr_all_cgn(float* A, float* B, float* C,int M,int N,int K){
+
+    int blk_M = 512;
+    int blk_N = 512;
+    int blk_K = 512;
+
+    const int M_tot = M;
+    const int Ms_tot = (M_tot / blk_M) * blk_M;
+    const int Me_tot = M_tot % blk_M != 0 ? Ms_tot + blk_M : Ms_tot;
+    M = (M + 6 - 1) / 6;
+    const int Ms = (M / blk_M) * blk_M;
+    const int Ns = (N / blk_N) * blk_N;
+    const int Ks = (K / blk_K) * blk_K;
+    const int Me = M % blk_M != 0 ? Ms + blk_M : Ms;
+    const int Ne = N % blk_N != 0 ? Ns + blk_N : Ns;
+    const int Ke = K % blk_K != 0 ? Ks + blk_K : Ks;
+    const int slice = 6;
+
+    float* BT = malloc(sizeof(float) * K * N);
+    float* BTp = malloc(sizeof(float) * Ke * Ne);
+
+    float* Ap = malloc(sizeof(float) * slice * Me * Ke);
+    float* Bp = malloc(sizeof(float) * Ke * Ne);
+    float* Cp = malloc(sizeof(float) * slice * Me * Ne);
+
+    sw_gemmPara para;
+    para.counts = 1;
+    para.slice = slice;
+    para.blk_M = blk_M;
+    para.blk_N = blk_N;
+    para.blk_K = blk_K;
+    para.A = A;
+    para.Ap = Ap;
+    para.B = B;
+    para.Bp = Bp;
+    para.C = C;
+    para.Cp = Cp;
+    para.T = BT;
+    para.Tp = BTp;
+    para.M = M;
+    para.Ms = Ms;
+    para.Me = Me;
+    para.N = N;
+    para.Ns = Ns;
+    para.Ne = Ne;
+    para.K = K;
+    para.Ks = Ks;
+    para.Ke = Ke;
+    para_cross = &para;
+
+    int ret = athread_init_cgs();
+    ret = athread_spawn_cgs(sw_slave_gemm_rcr_all_cgn_f32, &para);
+    athread_join_cgs();
+
+    free(Ap);
+    free(Bp);
+    free(Cp);
+    free(BT);
+    free(BTp);
+}
+
+void test_gemm_real_rcr(){
+    int M = 3333;
+    int N = 1333;
+    int K = 1333;
+    float *A = malloc(sizeof(float) * M * K);
+    float *B = malloc(sizeof(float) * K * N);
+    float *C = malloc(sizeof(float) * M * N);
+    float *check_C = malloc(sizeof(float) * M * N);
+    for (int i = 0; i < M * K; i++){
+        A[i] = rand()*1.0/RAND_MAX;
+    }
+    for (int i = 0; i < K * N; i++){
+        B[i] = rand()*1.0/RAND_MAX;
+    }
+    for (int i = 0; i < M * N; i++){
+        C[i] = 0;
+    }
+    for (int i = 0; i < M * N; i++){
+        check_C[i] = 0;
+    }
+
+    gemm_rcr_all_cgn(A,B,C,M,N,K);
+    swptex_mm(A ,B ,check_C ,M ,N ,K , 0, 1);
+    check_C_all_f32(C, check_C, M, N);
+    free(A);
+    free(B);
+    free(C);
+    free(check_C);
+
+}
+
 void test_gemm_rcr_all_cgn(){
     struct timeval tv1, tv2;
-    int M = 12288;
-    int N = 768;
-    int K = 64;
+    int M = 1333;
+    int N = 1333;
+    int K = 1333;
     int blk_M = 512;
-    int blk_N = 768;
-    int blk_K = 64;
+    int blk_N = 512;
+    int blk_K = 512;
     int bn = 1;// six gemm
     float *A = malloc(sizeof(float) * bn * M * K);
     float *B = malloc(sizeof(float) * bn * K * N);
@@ -401,15 +496,16 @@ void test_gemm_rcr_all_cgn(){
     printf("Testing GEMM RCR F32 triple buffer asm no\n");
     gettimeofday(&tv1, NULL);
 
-    float* Btrans = malloc(sizeof(float) * bn * K * N);
+    float* BT = malloc(sizeof(float) * bn * K * N);
     for(int n = 0; n < N; n++){
         for(int k = 0; k < K; k++){
-            Btrans[k * N + n] = B[n * K + k];
+            BT[k * N + n] = B[n * K + k];
         }
     }
 
     float* Ap = malloc(sizeof(float) * slice * Me * Ke);
     float* Bp = malloc(sizeof(float) * Ke * Ne);
+    float* BTp = malloc(sizeof(float) * Ke * Ne);
     float* Cp = malloc(sizeof(float) * slice * Me * Ne);
     //memset(Ap,0,sizeof(float) * slice * Me * Ke);//initialized on many-cores
     //memset(Bp,0,sizeof(float) * Ke * Ne);//initialized on many-cores
@@ -423,10 +519,12 @@ void test_gemm_rcr_all_cgn(){
     para.blk_K = blk_K;
     para.A = A;
     para.Ap = Ap;
-    para.B = Btrans;
+    para.B = B;
     para.Bp = Bp;
     para.C = C;
     para.Cp = Cp;
+    para.T = BT;
+    para.Tp = BTp;
     para.M = M;
     para.Ms = Ms;
     para.Me = Me;
@@ -439,7 +537,7 @@ void test_gemm_rcr_all_cgn(){
     para_cross = &para;
 
     int ret = athread_init_cgs();
-    ret = athread_spawn_cgs(sw_slave_gemm_rrr_all_cgn_f32, &para);
+    ret = athread_spawn_cgs(sw_slave_gemm_rcr_all_cgn_f32, &para);
     athread_join_cgs();
 
     gettimeofday(&tv2, NULL);
@@ -458,7 +556,7 @@ void test_gemm_rcr_all_cgn(){
     printf("Result of GEMM RCR F32 hardware cache: %lf\n", origin_seconds);
 
     //check_copy_border_f32(check_C, Cp, M, Ms, Me, blk_M, N, Ns, Ne, blk_N);
-    check_C_all_f32(C, check_C, M_tot, Ms_tot, Me_tot, blk_M, N, Ns, Ne, blk_N);
+    check_C_all_f32(C, check_C, M_tot, N);
 
     free(A);
     free(Ap);
@@ -466,8 +564,80 @@ void test_gemm_rcr_all_cgn(){
     free(Bp);
     free(C);
     free(Cp);
+    free(BT);
+    free(BTp);
     free(check_C);
 
+}
+
+void test_trans(){
+    printf("testing trans\n");
+    int M = 1777;
+    int N = 1777;
+    int K = 1777;
+    int blk_M = 512;
+    int blk_N = 512;
+    int blk_K = 512;
+    int bn = 1;// six gemm
+    float *C = malloc(sizeof(float) * bn * M * N);
+    float *check_C = malloc(sizeof(float) * bn * M * N);
+    float *T = malloc(sizeof(float) * bn * M * N);
+
+    for(int m = 0; m < M; m++){
+        for(int n = 0; n < N; n++){
+            check_C[n * M + m] = C[m * N + n] = rand()*1.0/RAND_MAX;
+        }
+    }
+
+    int Ms = (M / blk_M) * blk_M;
+    int Ns = (N / blk_N) * blk_N;
+    int Ks = (K / blk_K) * blk_K;
+    int Me = M % blk_M != 0 ? Ms + blk_M : Ms;
+    int Ne = N % blk_N != 0 ? Ns + blk_N : Ns;
+    int Ke = K % blk_K != 0 ? Ks + blk_K : Ks;
+
+    float* Cp = malloc(sizeof(float) * bn * Me * Ne);
+    float* Tp = malloc(sizeof(float) * bn * Me * Ne);
+
+    sw_gemmPara para;
+    para.counts = bn;
+    para.blk_M = blk_M;
+    para.blk_N = blk_N;
+    para.blk_K = blk_K;
+    para.C = C;
+    para.Cp = Cp;
+    para.M = M;
+    para.Ms = Ms;
+    para.Me = Me;
+    para.N = N;
+    para.Ns = Ns;
+    para.Ne = Ne;
+    para.K = K;
+    para.Ks = Ks;
+    para.Ke = Ke;
+    para.T = T;
+    para.Tp = Tp;
+    para_cross = &para;
+
+    int ret = athread_init_cgs();
+    ret = athread_spawn_cgs(sw_slave_gemm_trans_f32, &para);
+    athread_join_cgs();
+
+    for(int m = 0; m < Ms; m++){
+        for(int n = 0; n < Ns; n++){
+            if(check_C[n * M + m] != T[n * M + m]){
+                printf("trans error m %d n %d check_C %f T %f\n", m, n , check_C[n * M + m], T[n * M + m]);
+                //return;
+            }
+        }
+    }
+    printf("checking trans done\n");
+
+    free(C);
+    free(Cp);
+    free(T);
+    free(Tp);
+    free(check_C);
 }
 
 void test_gemm_rcr(){
@@ -558,7 +728,7 @@ void test_gemm_rcr(){
     printf("Result of GEMM RRR F32 hardware cache: %lf\n", origin_seconds);
 
     check_copy_border_f32(check_C, Cp, M, Ms, Me, blk_M, N, Ns, Ne, blk_N);
-    check_C_all_f32(C, check_C, M, Ms, Me, blk_M, N, Ns, Ne, blk_N);
+    check_C_all_f32(C, check_C, M, N);
 
     free(A);
     free(Ap);
