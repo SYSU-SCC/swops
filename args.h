@@ -38,6 +38,7 @@ typedef struct sw_gemmPara {
     }Atype, Btype, Ctype;
 
   size_t counts;
+  size_t slice;
 
   size_t blk_M;
   size_t blk_N;
