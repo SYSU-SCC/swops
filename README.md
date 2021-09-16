@@ -22,12 +22,15 @@ Job 2958271 has been finished.
 # BMM RRR Result at Sep 8th 2021
 Seems that the writing double buffer is meaningless
 ```
-bmm rrr original: 0.247718
-bmm rrr optimized: 0.016450
-bmm crr original: 0.256681
-bmm crr optimized: 0.008509
-bmm rcr original: 0.248262
-bmm rcr optimized: 0.008528
-Job 2970526 has been finished.
-[cpc10@sw_hpc_102 swops]$
+test batch mm without writing double buffer
+ldm_malloc size of blk: 221184, max size: 262144
+M 192 N 192 K 192 blk_M 96 blk_N 96 blk_K 96 batch: 768
+bmm original: 30.302411
+bmm optimized: 0.249667
+
+test batch mm with writing double buffer
+ldm_malloc size of blk: 221184, max size: 262144
+M 192 N 192 K 192 blk_M 96 blk_N 96 blk_K 96 batch: 768
+bmm original: 30.302411
+bmm optimized: 0.249033
 ```

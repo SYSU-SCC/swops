@@ -5,7 +5,8 @@ int main(int argc, char *argv[]){
     //test_bmm_rrr();
     //test_bmm_rcr();
     //test_bmm_crr();
-    test_sw_bmm_all();
+    //test_sw_bmm_all();
+    test_gemm_rrr4();
     //test_gemm_rrr();
     //test_gemm_rrr_all_cgn();
     //test_gemm_real_rcr();
