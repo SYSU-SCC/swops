@@ -454,7 +454,7 @@ void sw_slave_gemm_rrr_cgn(const int CGN_id,
                 }
                 if(rid == 0){
                     athread_dma_wait_value(&dma_get_B, 1);
-                    athread_rma_col_ibcast(local_B + double_buffer_B * local_A_size,
+                    athread_rma_col_ibcast(local_B + double_buffer_B * local_B_size,
                                             local_B_dma,
                                             sizeof(float) * local_B_size,
                                             &rma_local_B,
@@ -739,7 +739,6 @@ void sw_slave_gemm_rrr4_cgn(const int CGN_id,
                         printf("next B next_B_offset: %d\n",next_B_offset);
                     }
                 } */
-
                 double_buffer_A = 0;// 2 - A
                 double_buffer_B = 0;// 2 - B
                 athread_ssync_array();
@@ -749,7 +748,7 @@ void sw_slave_gemm_rrr4_cgn(const int CGN_id,
                                             local_A_dma,
                                             sizeof(float) * local_A_size,
                                             &rma_local_A,
-                                            &rma_A[0]);
+                                            &rma_A[cid]);
                 }
                 if(cid == 1){
                     athread_dma_wait_value(&dma_get_A, 1);
@@ -757,25 +756,24 @@ void sw_slave_gemm_rrr4_cgn(const int CGN_id,
                                             local_A_dma,
                                             sizeof(float) * local_A_size,
                                             &rma_local_A,
-                                            &rma_A[1]);
+                                            &rma_A[cid]);
                 }
                 if(rid == 0){
                     athread_dma_wait_value(&dma_get_B, 1);
-                    athread_rma_col_ibcast(local_B + double_buffer_B * local_A_size,
+                    athread_rma_col_ibcast(local_B + double_buffer_B * local_B_size,
                                             local_B_dma,
                                             sizeof(float) * local_B_size,
                                             &rma_local_B,
-                                            &rma_B[0]);
+                                            &rma_B[rid]);
                 }
                 if(rid == 1){
                     athread_dma_wait_value(&dma_get_B, 1);
-                    athread_rma_col_ibcast(local_B + (double_buffer_B + 1) * local_A_size,
+                    athread_rma_col_ibcast(local_B + (double_buffer_B + 1) * local_B_size,
                                             local_B_dma,
                                             sizeof(float) * local_B_size,
                                             &rma_local_B,
-                                            &rma_B[1]);
+                                            &rma_B[rid]);
                 }
-
                 for(int c_R = 0; c_R < 8; c_R += 2){
 
                     if(cid == c_R && c_M * num_N * num_K + c_N * num_K + c_K + 1 < num_M * num_N * num_K){
@@ -790,7 +788,7 @@ void sw_slave_gemm_rrr4_cgn(const int CGN_id,
                                                 sizeof(float) * A_step,
                                                 &dma_get_A);
                     }
-                    if(cid == c_R + 1 && c_M * num_N * num_K + c_N * num_K + c_K + 1 < num_M * num_N * num_K){
+                    if(cid == (c_R + 1) && c_M * num_N * num_K + c_N * num_K + c_K + 1 < num_M * num_N * num_K){
                         athread_dma_wait_value(&dma_get_A, 1);
                         athread_rma_wait_value(&rma_local_A, 1);
                         dma_get_A = 0;
@@ -814,7 +812,7 @@ void sw_slave_gemm_rrr4_cgn(const int CGN_id,
                                                 sizeof(float) * B_step,
                                                 &dma_get_B);//这个get要护
                     }
-                    if(rid == c_R + 1 && c_M * num_N * num_K + c_N * num_K + c_K + 1 < num_M * num_N * num_K){
+                    if(rid == (c_R + 1) && c_M * num_N * num_K + c_N * num_K + c_K + 1 < num_M * num_N * num_K){
                         athread_dma_wait_value(&dma_get_B, 1);
                         athread_rma_wait_value(&rma_local_B, 1);
                         dma_get_B = 0;
@@ -838,8 +836,9 @@ void sw_slave_gemm_rrr4_cgn(const int CGN_id,
                     double_buffer_B = 2 - double_buffer_B;
 
                     rma_A[c_R] = 0;
-                    rma_B[c_R] = 0;
                     rma_A[c_R + 1] = 0;
+
+                    rma_B[c_R] = 0;
                     rma_B[c_R + 1] = 0;
 
                     if(cid == c_R + 2){
@@ -847,30 +846,29 @@ void sw_slave_gemm_rrr4_cgn(const int CGN_id,
                                                 local_A_dma,
                                                 sizeof(float) * local_A_size,
                                                 &rma_local_A,
-                                                &rma_A[c_R + 2]);
+                                                &rma_A[cid]);
                     }
                     if(cid == c_R + 3){
                         athread_rma_row_ibcast(local_A + (double_buffer_A + 1) * local_A_size, 
                                                 local_A_dma,
                                                 sizeof(float) * local_A_size,
                                                 &rma_local_A,
-                                                &rma_A[c_R + 3]);
+                                                &rma_A[cid]);
                     }
                     if(rid == c_R + 2){
                         athread_rma_col_ibcast(local_B + double_buffer_B * local_B_size,
                                                 local_B_dma,
                                                 sizeof(float) * local_B_size,
                                                 &rma_local_B,
-                                                &rma_B[c_R + 2]);
+                                                &rma_B[rid]);
                     }
                     if(rid == c_R + 3){
                         athread_rma_col_ibcast(local_B + (double_buffer_B + 1) * local_B_size,
                                                 local_B_dma,
                                                 sizeof(float) * local_B_size,
                                                 &rma_local_B,
-                                                &rma_B[c_R + 3]);
+                                                &rma_B[rid]);
                     }
-
                     for(int m = 0; m < (blk_M/8); m++){
                         for(int n = 0; n < (blk_N/8); n++){
                             for(int k = 0; k < (blk_K/8); k++){
@@ -880,6 +878,16 @@ void sw_slave_gemm_rrr4_cgn(const int CGN_id,
                             }
                         }
                     }
+                    for(int m = 0; m < (blk_M/8); m++){
+                        for(int n = 0; n < (blk_N/8); n++){
+                            for(int k = 0; k < (blk_K/8); k++){
+                                local_C_dma[m * (blk_N/8) + n] += 
+                                local_A[m * (blk_K/8) + k + (2 - double_buffer_A + 1) * local_A_size] *
+                                local_B[k * (blk_N/8) + n + (2 - double_buffer_B + 1) * local_B_size];
+                            }
+                        }
+                    }
+                    //还真是这里啊，我勒个去，明天研究下能不能把两个循环合并了
                 }
             }
             if(curr_blk_M == blk_M && curr_blk_N == blk_N){
@@ -905,8 +913,8 @@ void sw_slave_gemm_rrr4_cgn(const int CGN_id,
         }
     }
     athread_ssync_array();
-    ldm_free(local_A, sizeof(float) * 2 * blk_M * blk_K / 64);
-    ldm_free(local_B, sizeof(float) * 2 * blk_K * blk_N / 64);
+    ldm_free(local_A, sizeof(float) * 4 * blk_M * blk_K / 64);
+    ldm_free(local_B, sizeof(float) * 4 * blk_K * blk_N / 64);
     ldm_free(local_C, sizeof(double) * blk_M * blk_N / 64);
     ldm_free(local_A_dma, sizeof(float) * blk_M * blk_K / 64);
     ldm_free(local_B_dma, sizeof(float) * blk_K * blk_N / 64);

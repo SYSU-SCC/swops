@@ -257,12 +257,12 @@ void test_gemm_crr(){
 
 void test_gemm_rrr(){
     struct timeval tv1, tv2;
-    int M = 1777;
-    int N = 1777;
-    int K = 1777;
+    int M = 12288;
+    int N = 768;
+    int K = 64;
     int blk_M = 512;
-    int blk_N = 512;
-    int blk_K = 512;
+    int blk_N = 768;
+    int blk_K = 64;
     int bn = 1;// six gemm
     float *A = malloc(sizeof(float) * bn * M * K);
     float *B = malloc(sizeof(float) * bn * K * N);
@@ -359,19 +359,23 @@ void test_gemm_rrr4(){
     int M = 12288;
     int N = 768;
     int K = 64;
-    int blk_M = 1024;
+    int blk_M = 512;
     int blk_N = 768;
     int blk_K = 64;
     int bn = 1;// six gemm
     float *A = malloc(sizeof(float) * bn * M * K);
     float *B = malloc(sizeof(float) * bn * K * N);
     float *C = malloc(sizeof(float) * bn * M * N);
-    float *check_C = malloc(sizeof(float) * bn * M * N);
-    for (int i = 0; i < bn * M * K; i++){
-        A[i] = rand()*1.0/RAND_MAX;
+    float *check_C = malloc(sizeof(float) * bn * M * N);//rand()*1.0/RAND_MAX;
+    for(int m = 0; m < M; m++){
+        for(int k = 0; k < K; k++){
+            A[m * K + k] = k;
+        }
     }
-    for (int i = 0; i < bn * K * N; i++){
-        B[i] = rand()*1.0/RAND_MAX;
+    for(int n = 0; n < N; n++){
+        for(int k = 0; k < K; k++){
+            B[k * N + n] = k;
+        }
     }
     for (int i = 0; i < bn * M * N; i++){
         C[i] = 0;
@@ -423,7 +427,7 @@ void test_gemm_rrr4(){
     para_cross = &para;
 
     int ret = athread_init_cgs();
-    ret = athread_spawn_cgs(sw_slave_gemm_rrr_f32, &para);
+    ret = athread_spawn_cgs(sw_slave_gemm_rrr4_f32, &para);
     athread_join_cgs();
 
     gettimeofday(&tv2, NULL);
