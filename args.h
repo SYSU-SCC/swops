@@ -43,6 +43,11 @@ typedef struct sw_gemmPara {
   size_t blk_M;
   size_t blk_N;
   size_t blk_K;
+
+  size_t sli_M;
+  size_t rem_M;
+  size_t rem_Ms;
+  size_t rem_Me;
   
   float* A;
   float* Ap;
