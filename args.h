@@ -51,12 +51,15 @@ typedef struct sw_gemmPara {
   
   float* A;
   float* Ap;
+  size_t copy_all_A;
 
   float* B;
   float* Bp;
+  size_t copy_all_B;
 
   float* C;
   float* Cp;
+  size_t copy_all_C;
 
   float* T;
   float* Tp;
