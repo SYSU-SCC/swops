@@ -32,9 +32,12 @@ inline void sw_slave_gemm_copy_all_W_32_to_64(const int CGN_id,
 
     int blk_Q = local_rows * 64 * sizeof(float) < 210 * 1024 ? local_rows : 210 * 1024 / (64 * sizeof(float));
 
-    int rem_Q;
+    int rem_Q = blk_Q;
+    if(blk_Q != local_rows){
+        rem_Q = local_rows % blk_Q;
+    }
 
-    printf("myid %d counts_Q %d local_start %d local_rows %d local_end %d\n", myid, counts_Q, local_start, local_rows, local_end);
+    printf("myid %d counts_Q %d blk_Q %d local_start %d local_rows %d local_end %d\n", myid, counts_Q, blk_Q, local_start, local_rows, local_end);
 
 
 }
@@ -1642,6 +1645,7 @@ void sw_slave_gemm_rrr_sli_cgn_f32(sw_gemmPara *_){
 
 
 void sw_slave_bmm_rrr(sw_bmmPara *_){
+    const int myid = CRTS_cgn * 64 + CRTS_tid;
     sw_bmmPara *para = (sw_bmmPara *)para_cross;
     const float *src_A = para->A;
     const float *src_B = para->B;
@@ -1654,7 +1658,7 @@ void sw_slave_bmm_rrr(sw_bmmPara *_){
     size_t blk_K = para->blk_K;
     size_t counts = para->counts;
     const int local_count = (counts + 383) / 384;
-    const int local_start = _MYID * local_count;
+    const int local_start = myid * local_count;
     const int local_end = ((local_start + local_count > counts) ? counts : (local_start + local_count));
     if (local_start >= counts){
         return;
@@ -1836,6 +1840,7 @@ void sw_slave_bmm_rrr(sw_bmmPara *_){
 }
 
 void sw_slave_bmm_rcr(sw_bmmPara *_){
+    const int myid = CRTS_cgn * 64 + CRTS_tid;
     sw_bmmPara *para = (sw_bmmPara *)para_cross;
     const float *src_A = para->A;
     const float *src_B = para->B;
@@ -1848,7 +1853,7 @@ void sw_slave_bmm_rcr(sw_bmmPara *_){
     size_t blk_K = para->blk_K;
     size_t counts = para->counts;
     const int local_count = (counts + 383) / 384;
-    const int local_start = _MYID * local_count;
+    const int local_start = myid * local_count;
     const int local_end = ((local_start + local_count > counts) ? counts : (local_start + local_count));
     if (local_start >= counts){
         return;
@@ -2030,6 +2035,7 @@ void sw_slave_bmm_rcr(sw_bmmPara *_){
 }
 
 void sw_slave_bmm_crr(sw_bmmPara *_){
+    const int myid = CRTS_cgn * 64 + CRTS_tid;
     sw_bmmPara *para = (sw_bmmPara *)para_cross;
     const float *src_A = para->A;
     const float *src_B = para->B;
@@ -2042,7 +2048,7 @@ void sw_slave_bmm_crr(sw_bmmPara *_){
     size_t blk_K = para->blk_K;
     size_t counts = para->counts;
     const int local_count = (counts + 383) / 384;
-    const int local_start = _MYID * local_count;
+    const int local_start = myid * local_count;
     const int local_end = ((local_start + local_count > counts) ? counts : (local_start + local_count));
     if (local_start >= counts){
         return;
