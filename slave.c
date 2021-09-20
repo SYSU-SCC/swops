@@ -10,6 +10,112 @@ __cross void *para_cross = NULL;
 
 #define thread_num (64 * 6)
 
+inline void sw_slave_gemm_copy_all_back_add(const int ThreadsStart, const int ThreadsEnd,
+                                            const int sli_A,
+                                            const float* A, const float* Ap,
+                                            const int H, const int He,
+                                            const int W, const int We){
+
+    const int ThreadsNum = ThreadsEnd - ThreadsStart + 1;
+    const int myid = CRTS_cgn * 64 + CRTS_tid - ThreadsStart;
+
+    if(ThreadsNum <= 0){
+        printf("sw_slave_gemm_copy_all ThreadsNum Error!\n");
+        return;
+    }
+    /* if(H == He && W == We){
+        printf("sw_slave_gemm_copy_all Don't Need Copy All!\n");
+        return;
+    } */
+    if(sli_A == 0){
+        printf("sw_slave_gemm_copy_all_back_add sli_A == 0!\n Please use sw_slave_gemm_copy_all_back");
+        return;
+    }
+    if(myid < 0){
+        //printf("_MYID %d sw_slave_gemm_copy_all myid %d return!\n", CRTS_cgn * 64 + CRTS_tid, myid);
+        return;
+    }
+
+    const int counts_Q = H;
+    
+    const int local_count = (counts_Q + ThreadsNum - 1) / ThreadsNum;
+    const int local_start = myid * local_count;
+    const int local_end = ((local_start + local_count > counts_Q) ? counts_Q : (local_start + local_count));
+    const int local_rows = local_end - local_start;
+
+    if(local_start >= counts_Q || myid >= ThreadsNum){
+        return;
+    }
+
+    int blk_Q = (sli_A * local_rows * We * sizeof(float) < 210 * 1024) ? local_rows : 210 * 1024 / (sli_A * We * sizeof(float));
+
+    int rem_Q = blk_Q;
+    if(blk_Q != local_rows){
+        rem_Q = local_rows % blk_Q;
+    }
+
+    float* local_Q = ldm_malloc(sizeof(float) * sli_A * blk_Q * We);
+    //printf("myid %d H %d He %d blk_Q %d rem_Q %d local_start %d local_rows %d local_end %d\n", myid, H, He, blk_Q, rem_Q, local_start, local_rows, local_end);
+    for(int local_now = local_start; local_now < local_end; local_now += blk_Q){
+        int curr_Q = blk_Q;
+        if(local_now + blk_Q < H){//right zeros only
+            curr_Q = local_end - local_now < blk_Q ? rem_Q : blk_Q;
+            printf("local_now %d blk_Q %d curr_Q %d\n", local_now, blk_Q, curr_Q);
+            athread_dma_get_stride(local_Q,
+                                    Ap + local_now * We,
+                                    sizeof(float) * sli_A * curr_Q * We,
+                                    sizeof(float) * curr_Q * We,
+                                    sizeof(float) * He * We);
+
+            for(int s = 1; s < sli_A; s++){
+                for(int m = 0; m < curr_Q; m++){
+                    for(int n = 0; n < W; n++){
+                        local_Q[m * We + n] += local_Q[s * curr_Q * We + m * We + n];
+                    }
+                }
+            }
+
+            for(int m = 0; m < curr_Q; m++){
+                for(int n = 0; n < W; n++){
+                    local_Q[m * W + n] = local_Q[m * We + n];
+                }
+            }
+
+            athread_dma_put(A + local_now * W,
+                            local_Q,
+                            sizeof(float) * curr_Q * W);
+        }
+        else if(local_now + blk_Q >= H && local_now < H){//right and bottom zeros    There are some problems
+            curr_Q = local_end - local_now < blk_Q ? rem_Q : blk_Q;
+            int res_Q = H - local_now;
+            printf("local_now %d blk_Q %d curr_Q %d res_Q %d\n", local_now, blk_Q, curr_Q, res_Q);
+            athread_dma_get_stride(local_Q,
+                                    Ap + local_now * We,
+                                    sizeof(float) * sli_A * res_Q * We,
+                                    sizeof(float) * res_Q * We,
+                                    sizeof(float) * He * We);
+
+            for(int s = 1; s < sli_A; s++){
+                for(int m = 0; m < res_Q; m++){
+                    for(int n = 0; n < W; n++){
+                        local_Q[m * We + n] += local_Q[s * res_Q * We + m * We + n];
+                    }
+                }
+            }
+
+            for(int m = 0; m < res_Q; m++){
+                for(int n = 0; n < W; n++){
+                    local_Q[m * W + n] = local_Q[m * We + n];
+                }
+            }
+            athread_dma_put(A + local_now * W,
+                            local_Q,
+                            sizeof(float) * res_Q * W);
+        }
+    }
+    ldm_free(local_Q, sizeof(float) * sli_A * blk_Q * We);
+}
+
 inline void sw_slave_gemm_copy_all_back(const int ThreadsStart, const int ThreadsEnd,
                                         const float* A, const float* Ap,
                                         const int H, const int He,
@@ -1548,6 +1654,70 @@ void sw_slave_gemm_rrr_f32(sw_gemmPara *_){
     //sw_slave_gemm_copy_border_back_f32_cgn(0, src_C, src_Cp, M, Ms, Me, blk_M, N, Ns, Ne, blk_N);
 }
 
+void sw_slave_gemm_crr_sli_cgn_f32(sw_gemmPara *_){
+    sw_gemmPara *para = (sw_gemmPara *)para_cross;
+    const float *A = para->A;
+    const float *Ap = para->Ap;
+    const float *B = para->B;
+    const float *Bp = para->Bp;
+    const float *C = para->C;
+    const float *Cp = para->Cp;
+    const float *A_cgn;
+    const float *B_cgn;
+    const float *C_cgn;
+    const size_t M = para->M;
+    const size_t Ms = para->Ms;
+    const size_t Me = para->Me;
+    const size_t N = para->N;
+    const size_t Ns = para->Ns;
+    const size_t Ne = para->Ne;
+    const size_t K = para->K;
+    const size_t Ks = para->Ks;
+    const size_t Ke = para->Ke;
+    const size_t blk_M = para->blk_M;
+    const size_t blk_N = para->blk_N;
+    const size_t blk_K = para->blk_K;
+    const size_t sli_C = para->sli_C;
+    if(M == Me && K == Ke){
+        A_cgn = para->A_sli[CRTS_cgn];
+    }
+    else{
+        A_cgn = para->Ap_sli[CRTS_cgn];
+        sw_slave_gemm_copy_all(0, 383, A, Ap, K, Ke, M, Me);// be care ful!!!!
+    }
+    if(K == Ke && N == Ne){
+        B_cgn = para->B_sli[CRTS_cgn];
+    }
+    else{
+        B_cgn = para->Bp_sli[CRTS_cgn];
+        sw_slave_gemm_copy_all(0, 383, B, Bp, K, Ke, N, Ne);
+    }
+    if(M == Me && N == Ne){
+        C_cgn = para->C_sli[CRTS_cgn];
+    }
+    else{
+        C_cgn = para->Cp_sli[CRTS_cgn];
+    }
+    const size_t K_cgn = para->sli_K[CRTS_cgn];
+    athread_ssync_node();
+    if(CRTS_tid == 0){
+        printf("CRTS_cgn %d K_cgn %d\n",CRTS_cgn,K_cgn);
+        printf("sli_C %d\n", sli_C);
+    }
+    if(K_cgn > 0){
+        sw_slave_gemm_crr_cgn(CRTS_cgn,
+                            A_cgn, A_cgn, 
+                            B_cgn, B_cgn, 
+                            C_cgn, C_cgn,
+                            Me, Me, Me, blk_M,
+                            Ne, Ne, Ne, blk_N,
+                            K_cgn, K_cgn, K_cgn, blk_K);
+    }
+    athread_ssync_node();
+    sw_slave_gemm_copy_all_back_add(0, 383, sli_C, C, Cp, M, Me, N, Ne);
+    athread_ssync_node();
+}
+
 void sw_slave_gemm_rrr_sli_cgn_f32(sw_gemmPara *_){
     sw_gemmPara *para = (sw_gemmPara *)para_cross;
     const float *A = para->A;
@@ -1591,18 +1761,20 @@ void sw_slave_gemm_rrr_sli_cgn_f32(sw_gemmPara *_){
     else{
         C_cgn = para->Cp_sli[CRTS_cgn];
     }
-    const size_t M_cgn = para->sli_M[CRTS_cgn];
+    const int M_cgn = para->sli_M[CRTS_cgn];
     athread_ssync_node();
     if(CRTS_tid == 0){
         printf("CRTS_cgn %d M_cgn %d\n",CRTS_cgn,M_cgn);
     }
-    sw_slave_gemm_rrr_cgn(CRTS_cgn,
+    if(M_cgn > 0){
+        sw_slave_gemm_rrr_cgn(CRTS_cgn,
                             A_cgn, A_cgn, 
                             B_cgn, B_cgn, 
                             C_cgn, C_cgn,
                             M_cgn, M_cgn, M_cgn, blk_M,
                             Ne, Ne, Ne, blk_N,
                             Ke, Ke, Ke, blk_K);
+    }
     athread_ssync_node();
     if(M != Me || N != Ne){
         sw_slave_gemm_copy_all_back(0, 383, C, Cp, M, Me, N, Ne);

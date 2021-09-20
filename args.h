@@ -37,56 +37,57 @@ typedef struct sw_gemmPara {
 	CblasColMajor = 102
     }Atype, Btype, Ctype;
 
-  size_t counts;
-  size_t slice;
+  int counts;
+  int slice;
 
-  size_t blk_M;
-  size_t blk_N;
-  size_t blk_K;
+  int blk_M;
+  int blk_N;
+  int blk_K;
 
-  size_t Mp;
-  size_t Np;
-  size_t Kp;
+  int Mp;
+  int Np;
+  int Kp;
 
-  size_t sli_M[6];
-  size_t sli_N[6];
-  size_t sli_K[6];
-  size_t rem_M;
-  size_t rem_Ms;
-  size_t rem_Me;
+  int sli_M[6];
+  int sli_N[6];
+  int sli_K[6];
+  int rem_M;
+  int rem_Ms;
+  int rem_Me;
   
   float* A;
   float* Ap;
   float* A_sli[6];
   float* Ap_sli[6];
-  size_t copy_all_A;
+  int copy_all_A;
 
   float* B;
   float* Bp;
   float* B_sli[6];
   float* Bp_sli[6];
-  size_t copy_all_B;
+  int copy_all_B;
 
   float* C;
   float* Cp;
   float* C_sli[6];
   float* Cp_sli[6];
-  size_t copy_all_C;
+  int sli_C;
+  int copy_all_C;
 
   float* T;
   float* Tp;
 
-  size_t M;
-  size_t Ms;
-  size_t Me;
+  int M;
+  int Ms;
+  int Me;
 
-  size_t N;
-  size_t Ns;
-  size_t Ne;
+  int N;
+  int Ns;
+  int Ne;
 
-  size_t K;
-  size_t Ks;
-  size_t Ke;
+  int K;
+  int Ks;
+  int Ke;
 } sw_gemmPara, *sw_gemmPara_t;
 
 #endif
