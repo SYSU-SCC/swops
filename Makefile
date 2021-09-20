@@ -1,6 +1,6 @@
 CC = swgcc
-HCFLAGS = -std=gnu99 -O3 -msimd -faddress_align=64 -mhost
-SCFLAGS = -std=gnu99 -O3 -msimd -faddress_align=64 -mslave
+HCFLAGS = -std=gnu99 -O3 -msimd -faddress_align=64 -mhost #-D_SWOPS_DEBUG
+SCFLAGS = -std=gnu99 -O3 -msimd -faddress_align=64 -mslave #-D_SWOPS_DEBUG
 LDFLAGS = -lm
 HEADER_FILES = 
 

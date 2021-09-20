@@ -343,7 +343,9 @@ void get_best_blk_rrr(int M, int N, int K, int *best_blk_M, int *best_blk_N, int
     best_blk_M[0] = temp_blk_M;
     best_blk_N[0] = temp_blk_N;
     best_blk_K[0] = temp_blk_K;
+#ifdef _SWOPS_DEBUG
     printf("temp_blk_M %d temp_blk_N %d temp_blk_K %d\n", temp_blk_M, temp_blk_N, temp_blk_K);
+#endif
 }
 
 void get_best_blk_crr(int M, int N, int K, int *best_blk_M, int *best_blk_N, int *best_blk_K){
@@ -432,11 +434,15 @@ void get_best_blk_crr(int M, int N, int K, int *best_blk_M, int *best_blk_N, int
     best_blk_M[0] = temp_blk_M;
     best_blk_N[0] = temp_blk_N;
     best_blk_K[0] = temp_blk_K;
+#ifdef _SWOPS_DEBUG
     printf("temp_blk_M %d temp_blk_N %d temp_blk_K %d\n", temp_blk_M, temp_blk_N, temp_blk_K);
+#endif
 }
 
 void gemm_crr_all(float* A, float* B, float* C, int M, int N, int K){
-     printf("gemm rrr all API\n");
+#ifdef _SWOPS_DEBUG
+    printf("gemm crr all API\n");
+#endif
     if(K < N|| K < M){
         printf("GEMM CRR can't perform well\n");
         return;
@@ -461,22 +467,24 @@ void gemm_crr_all(float* A, float* B, float* C, int M, int N, int K){
     int Ne = temp_N % blk_N != 0 ? Ns + blk_N : Ns;
     int Ke = temp_K % blk_K != 0 ? Ks + blk_K : Ks;
 
-    printf("CRR M %d N %d K %d blk_M %d blk_N %d blk_K %d\n", M, N, K, blk_M, blk_N, blk_K);
     int ldm_use = 3 * (blk_M * blk_K + blk_K * blk_N + blk_M * blk_N) * sizeof(float)/64;
+#ifdef _SWOPS_DEBUG
+    printf("CRR M %d N %d K %d blk_M %d blk_N %d blk_K %d\n", M, N, K, blk_M, blk_N, blk_K);
     printf("CRR ldm_use %d total_ldm %d\n", ldm_use, 220 * 1024);
-
+#endif
     float* Ap = malloc(sizeof(float) * Me * Ke);
     float* Bp = malloc(sizeof(float) * Ke * Ne);
     float* Cp = malloc(sizeof(float) * 6 * Me * Ne);// all six
-
+#ifdef _SWOPS_DEBUG
     printf("Ap ptr %d\n",Ap);
     printf("Bp ptr %d\n",Bp);
     printf("Cp ptr %d\n",Cp);
+#endif
 
     int num_sli = (temp_K + blk_K - 1)/ blk_K;//the totol num of blk_M
-
+#ifdef _SWOPS_DEBUG
     printf("num_sli %d\n", num_sli);
-
+#endif
     const int counts_Q = num_sli;//count jobs
 
     int local_count = (num_sli + 6 - 1)/6;
@@ -488,7 +496,9 @@ void gemm_crr_all(float* A, float* B, float* C, int M, int N, int K){
         local_start[i] = i * local_count;
         local_end[i] = ((local_start[i] + local_count > counts_Q) ? counts_Q : (local_start[i] + local_count));
         local_sli[i] = local_end[i] - local_start[i];
+#ifdef _SWOPS_DEBUG
         printf("cgn %d local_start %d local_end %d local_sli %d\n",i,local_start[i],local_end[i],local_sli[i]);
+#endif    
     }
 
     for(int i = 0; i < 6; i++){
@@ -545,9 +555,10 @@ void gemm_crr_all(float* A, float* B, float* C, int M, int N, int K){
     int ret = athread_init_cgs();
     ret = athread_spawn_cgs(sw_slave_gemm_crr_sli_cgn_f32, &para);
     athread_join_cgs();
-
+#ifdef _SWOPS_DEBUG
     printf("Cp[0] %f Cp[1] %f Cp[2] %f\n", Cp[0], Cp[1], Cp[2]);
     printf("C[0] %f C[1] %f C[2] %f\n", C[0], C[1], C[2]);
+#endif
     /* for(int s = 0; s < 6; s++){
         for(int m = 0; m < Me; m++){
             for(int n = 0; n < Ne; n++){
@@ -574,19 +585,19 @@ void gemm_crr_all(float* A, float* B, float* C, int M, int N, int K){
 
 void test_gemm_crr_all(){
     struct timeval tv1, tv2;
-    int M = 64;
+    int M = 32;
     int N = 768;
     int K = 12800;
     float *A = malloc(sizeof(float) * M * K);
     float *B = malloc(sizeof(float) * K * N);
     float *C = malloc(sizeof(float) * M * N);
     float *check_C = malloc(sizeof(float) * M * N);
-
+#ifdef _SWOPS_DEBUG
     printf("A ptr %d\n",A);
     printf("B ptr %d\n",B);
     printf("C ptr %d\n",C);
     printf("check_C ptr %d\n",check_C);
-
+#endif
     for (int i = 0; i < M * K; i++){
         A[i] = rand()*1.0/RAND_MAX;
     }
@@ -608,8 +619,9 @@ void test_gemm_crr_all(){
     gettimeofday(&tv2, NULL);
 
     double optimized_seconds = (tv2.tv_sec - tv1.tv_sec) + (tv2.tv_usec - tv1.tv_usec) * 1.0e-6;
+#ifdef _SWOPS_DEBUG
     printf("Result of gemm crr f32 cgn all, triple buffer, asm no: %lf\n", optimized_seconds);
-
+#endif
     
 
     gettimeofday(&tv1, NULL);
@@ -619,7 +631,9 @@ void test_gemm_crr_all(){
     gettimeofday(&tv2, NULL);
 
     double origin_seconds = (tv2.tv_sec - tv1.tv_sec) + (tv2.tv_usec - tv1.tv_usec) * 1.0e-6;
+#ifdef _SWOPS_DEBUG
     printf("Result of gemm crr f32 hardware cache: %lf\n", origin_seconds);
+#endif
 
     check_C_all_f32(C, check_C, M, N);
 
@@ -628,7 +642,9 @@ void test_gemm_crr_all(){
 }
 
 void gemm_rrr_all(float *A, float *B, float* C, int M, int N, int K){
+#ifdef _SWOPS_DEBUG
     printf("gemm rrr all API\n");
+#endif
     if(M < N || M < K){
         printf("GEMM RRR can't perform well\n");
         return;
@@ -649,7 +665,9 @@ void gemm_rrr_all(float *A, float *B, float* C, int M, int N, int K){
     int temp_K = K > 64 ? K : 64;
 
     int ldm_use = 3 * (blk_M * blk_K + blk_K * blk_N + blk_M * blk_N) * sizeof(float)/64;
+#ifdef _SWOPS_DEBUG
     printf("CRR ldm_use %d total_ldm %d\n", ldm_use, 220 * 1024);
+#endif
 
     int Ms = (temp_M / blk_M) * blk_M;
     int Ns = (temp_N / blk_N) * blk_N;
@@ -658,21 +676,25 @@ void gemm_rrr_all(float *A, float *B, float* C, int M, int N, int K){
     int Ne = temp_N % blk_N != 0 ? Ns + blk_N : Ns;
     int Ke = temp_K % blk_K != 0 ? Ks + blk_K : Ks;
 
+#ifdef _SWOPS_DEBUG
     printf("M %d N %d K %d blk_M %d blk_N %d blk_K %d\n", M, N, K, blk_M, blk_N, blk_K);
     printf("Ms %d Ns %d Ks %d Me %d Ne %d Ke %d\n", Ms, Ns, Ks, Me, Ne, Ke);
+#endif
 
     float* Ap = malloc(sizeof(float) * Me * Ke);
     float* Bp = malloc(sizeof(float) * Ke * Ne);
     float* Cp = malloc(sizeof(float) * Me * Ne);
-
+#ifdef _SWOPS_DEBUG
     printf("Ap ptr %d\n",Ap);
     printf("Bp ptr %d\n",Bp);
     printf("Cp ptr %d\n",Cp);
+#endif
 
 
     int num_sli = (temp_M + blk_M - 1)/ blk_M;//the totol num of blk_M
-
+#ifdef _SWOPS_DEBUG
     printf("num_sli %d\n", num_sli);
+#endif
 
     const int counts_Q = num_sli;//count jobs
 
@@ -684,7 +706,9 @@ void gemm_rrr_all(float *A, float *B, float* C, int M, int N, int K){
         local_start[i] = i * local_count;
         local_end[i] = ((local_start[i] + local_count > counts_Q) ? counts_Q : (local_start[i] + local_count));
         local_sli[i] = local_end[i] - local_start[i];
+#ifdef _SWOPS_DEBUG
         printf("cgn %d local_start %d local_end %d local_sli %d\n",i,local_start[i],local_end[i],local_sli[i]);
+#endif    
     }
 
     for(int i = 0; i < 6; i++){
@@ -762,11 +786,12 @@ void test_gemm_rrr_all(){
     float *B = malloc(sizeof(float) * K * N);
     float *C = malloc(sizeof(float) * M * N);
     float *check_C = malloc(sizeof(float) * M * N);
-
+#ifdef _SWOPS_DEBUG
     printf("A ptr %d\n",A);
     printf("B ptr %d\n",B);
     printf("C ptr %d\n",C);
     printf("check_C ptr %d\n",check_C);
+#endif
 
     for (int i = 0; i < M * K; i++){
         A[i] = rand()*1.0/RAND_MAX;
@@ -788,7 +813,9 @@ void test_gemm_rrr_all(){
     gettimeofday(&tv2, NULL);
 
     double optimized_seconds = (tv2.tv_sec - tv1.tv_sec) + (tv2.tv_usec - tv1.tv_usec) * 1.0e-6;
+#ifdef _SWOPS_DEBUG
     printf("Result of gemm rrr f32 cgn all, triple buffer, asm no: %lf\n", optimized_seconds);
+#endif
 
     
 
@@ -799,7 +826,9 @@ void test_gemm_rrr_all(){
     gettimeofday(&tv2, NULL);
 
     double origin_seconds = (tv2.tv_sec - tv1.tv_sec) + (tv2.tv_usec - tv1.tv_usec) * 1.0e-6;
+#ifdef _SWOPS_DEBUG
     printf("Result of gemm rrr f32 hardware cache: %lf\n", origin_seconds);
+#endif
 
     check_C_all_f32(C, check_C, M, N);
 

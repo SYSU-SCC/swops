@@ -60,12 +60,14 @@ inline void sw_slave_gemm_copy_all_back_add(const int ThreadsStart, const int Th
         int curr_Q = blk_Q;
         if(local_now + blk_Q < H){//right zeros only
             curr_Q = local_end - local_now < blk_Q ? rem_Q : blk_Q;
+#ifdef _SWOPS_DEBUG
             printf("local_now %d blk_Q %d curr_Q %d\n", local_now, blk_Q, curr_Q);
+#endif
             athread_dma_get_stride(local_Q,
                                     Ap + local_now * We,
                                     sizeof(float) * sli_A * curr_Q * We,
                                     sizeof(float) * curr_Q * We,
-                                    sizeof(float) * He * We);
+                                    sizeof(float) * (He * We - curr_Q * We));
 
             for(int s = 1; s < sli_A; s++){
                 for(int m = 0; m < curr_Q; m++){
@@ -88,12 +90,14 @@ inline void sw_slave_gemm_copy_all_back_add(const int ThreadsStart, const int Th
         else if(local_now + blk_Q >= H && local_now < H){//right and bottom zeros    There are some problems
             curr_Q = local_end - local_now < blk_Q ? rem_Q : blk_Q;
             int res_Q = H - local_now;
+#ifdef _SWOPS_DEBUG
             printf("local_now %d blk_Q %d curr_Q %d res_Q %d\n", local_now, blk_Q, curr_Q, res_Q);
+#endif
             athread_dma_get_stride(local_Q,
                                     Ap + local_now * We,
                                     sizeof(float) * sli_A * res_Q * We,
                                     sizeof(float) * res_Q * We,
-                                    sizeof(float) * He * We);
+                                    sizeof(float) * (He * We - res_Q * We));
 
             for(int s = 1; s < sli_A; s++){
                 for(int m = 0; m < res_Q; m++){
@@ -177,7 +181,9 @@ inline void sw_slave_gemm_copy_all_back(const int ThreadsStart, const int Thread
         else if(local_now + blk_Q >= H && local_now < H){//right and bottom zeros    There are some problems
             curr_Q = local_end - local_now < blk_Q ? rem_Q : blk_Q;
             int res_Q = H - local_now;
+#ifdef _SWOPS_DEBUG
             printf("local_now %d blk_Q %d curr_Q %d res_Q %d\n", local_now, blk_Q, curr_Q, res_Q);
+#endif
             athread_dma_get(local_Q,
                             Ap + local_now * We,
                             sizeof(float) * res_Q * We);
@@ -255,7 +261,9 @@ inline void sw_slave_gemm_copy_all(const int ThreadsStart, const int ThreadsEnd,
         else if(local_now + blk_Q >= H && local_now < H){//right and bottom zeros    There are some problems
             curr_Q = local_end - local_now < blk_Q ? rem_Q : blk_Q;
             int res_Q = H - local_now;
+#ifdef _SWOPS_DEBUG
             printf("local_now %d blk_Q %d curr_Q %d res_Q %d\n", local_now, blk_Q, curr_Q, res_Q);
+#endif
             athread_dma_get(local_Q,
                             A + local_now * W,
                             sizeof(float) * res_Q * W);
@@ -1700,10 +1708,12 @@ void sw_slave_gemm_crr_sli_cgn_f32(sw_gemmPara *_){
     }
     const size_t K_cgn = para->sli_K[CRTS_cgn];
     athread_ssync_node();
+#ifdef _SWOPS_DEBUG
     if(CRTS_tid == 0){
         printf("CRTS_cgn %d K_cgn %d\n",CRTS_cgn,K_cgn);
         printf("sli_C %d\n", sli_C);
     }
+#endif
     if(K_cgn > 0){
         sw_slave_gemm_crr_cgn(CRTS_cgn,
                             A_cgn, A_cgn, 
@@ -1763,9 +1773,11 @@ void sw_slave_gemm_rrr_sli_cgn_f32(sw_gemmPara *_){
     }
     const int M_cgn = para->sli_M[CRTS_cgn];
     athread_ssync_node();
+#ifdef _SWOPS_DEBUG
     if(CRTS_tid == 0){
         printf("CRTS_cgn %d M_cgn %d\n",CRTS_cgn,M_cgn);
     }
+#endif
     if(M_cgn > 0){
         sw_slave_gemm_rrr_cgn(CRTS_cgn,
                             A_cgn, A_cgn, 
