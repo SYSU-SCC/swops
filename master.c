@@ -443,10 +443,10 @@ void gemm_crr_all(float* A, float* B, float* C, int M, int N, int K){
 #ifdef _SWOPS_DEBUG
     printf("gemm crr all API\n");
 #endif
-    if(K < N|| K < M){
+    /* if(K < N|| K < M){
         printf("GEMM CRR can't perform well\n");
         return;
-    }
+    } */
     int blk_M = 64;
     int blk_N = 64;
     int blk_K = 64;
@@ -636,8 +636,6 @@ void test_gemm_crr_all(){
 #endif
 
     check_C_all_f32(C, check_C, M, N);
-
-
     
 }
 
@@ -645,10 +643,11 @@ void gemm_rrr_all(float *A, float *B, float* C, int M, int N, int K){
 #ifdef _SWOPS_DEBUG
     printf("gemm rrr all API\n");
 #endif
-    if(M < N || M < K){
+
+    /* if(M < N || M < K){
         printf("GEMM RRR can't perform well\n");
         return;
-    }
+    } */
 
     int blk_M = 64;
     int blk_N = 64;

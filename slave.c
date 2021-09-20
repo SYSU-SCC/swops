@@ -789,31 +789,6 @@ void sw_slave_gemm_crr_cgn(const int CGN_id,
 
                 for(int c_R = 0; c_R < 8; c_R++){
 
-                    if(cid == c_R && c_M * num_N * num_K + c_N * num_K + c_K + 1 < num_M * num_N * num_K){
-                        athread_dma_wait_value(&dma_get_A, 1);
-                        athread_rma_wait_value(&rma_local_A, 1);
-                        dma_get_A = 0;
-                        rma_local_A = 0;
-                        athread_dma_iget_stride(local_A_dma, 
-                                                next_A + next_A_offset, 
-                                                sizeof(float) * local_A_size, 
-                                                sizeof(float) * blk_M/8, 
-                                                sizeof(float) * A_step,
-                                                &dma_get_A);
-                    }
-                    if(rid == c_R && c_M * num_N * num_K + c_N * num_K + c_K + 1 < num_M * num_N * num_K){
-                        athread_dma_wait_value(&dma_get_B, 1);
-                        athread_rma_wait_value(&rma_local_B, 1);
-                        dma_get_B = 0;
-                        rma_local_B = 0;
-                        athread_dma_iget_stride(local_B_dma, 
-                                                next_B + next_B_offset, 
-                                                sizeof(float) * local_B_size, 
-                                                sizeof(float) * blk_N/8, 
-                                                sizeof(float) * B_step,
-                                                &dma_get_B);//这个get要护
-                    }
-
                     athread_rma_wait_value(&rma_A[c_R], 1);
                     athread_rma_wait_value(&rma_B[c_R], 1);
 
@@ -847,6 +822,31 @@ void sw_slave_gemm_crr_cgn(const int CGN_id,
                                 local_B[k * (blk_N/8) + n + (1 - double_buffer_B) * local_B_size];
                             }
                         }
+                    }
+
+                    if(cid == c_R && c_M * num_N * num_K + c_N * num_K + c_K + 1 < num_M * num_N * num_K){
+                        athread_dma_wait_value(&dma_get_A, 1);
+                        athread_rma_wait_value(&rma_local_A, 1);
+                        dma_get_A = 0;
+                        rma_local_A = 0;
+                        athread_dma_iget_stride(local_A_dma, 
+                                                next_A + next_A_offset, 
+                                                sizeof(float) * local_A_size, 
+                                                sizeof(float) * blk_M/8, 
+                                                sizeof(float) * A_step,
+                                                &dma_get_A);
+                    }
+                    if(rid == c_R && c_M * num_N * num_K + c_N * num_K + c_K + 1 < num_M * num_N * num_K){
+                        athread_dma_wait_value(&dma_get_B, 1);
+                        athread_rma_wait_value(&rma_local_B, 1);
+                        dma_get_B = 0;
+                        rma_local_B = 0;
+                        athread_dma_iget_stride(local_B_dma, 
+                                                next_B + next_B_offset, 
+                                                sizeof(float) * local_B_size, 
+                                                sizeof(float) * blk_N/8, 
+                                                sizeof(float) * B_step,
+                                                &dma_get_B);//这个get要护
                     }
                 }
             }
@@ -1068,30 +1068,7 @@ void sw_slave_gemm_rrr_cgn(const int CGN_id,
 
                 for(int c_R = 0; c_R < 8; c_R++){
 
-                    if(cid == c_R && c_M * num_N * num_K + c_N * num_K + c_K + 1 < num_M * num_N * num_K){
-                        athread_dma_wait_value(&dma_get_A, 1);
-                        athread_rma_wait_value(&rma_local_A, 1);
-                        dma_get_A = 0;
-                        rma_local_A = 0;
-                        athread_dma_iget_stride(local_A_dma, 
-                                                next_A + next_A_offset, 
-                                                sizeof(float) * local_A_size, 
-                                                sizeof(float) * blk_K/8, 
-                                                sizeof(float) * A_step,
-                                                &dma_get_A);
-                    }
-                    if(rid == c_R && c_M * num_N * num_K + c_N * num_K + c_K + 1 < num_M * num_N * num_K){
-                        athread_dma_wait_value(&dma_get_B, 1);
-                        athread_rma_wait_value(&rma_local_B, 1);
-                        dma_get_B = 0;
-                        rma_local_B = 0;
-                        athread_dma_iget_stride(local_B_dma, 
-                                                next_B + next_B_offset, 
-                                                sizeof(float) * local_B_size, 
-                                                sizeof(float) * blk_N/8, 
-                                                sizeof(float) * B_step,
-                                                &dma_get_B);//这个get要护
-                    }
+
 
                     athread_rma_wait_value(&rma_A[c_R], 1);
                     athread_rma_wait_value(&rma_B[c_R], 1);
@@ -1126,6 +1103,31 @@ void sw_slave_gemm_rrr_cgn(const int CGN_id,
                                 local_B[k * (blk_N/8) + n + (1 - double_buffer_B) * local_B_size];
                             }
                         }
+                    }
+
+                    if(cid == c_R && c_M * num_N * num_K + c_N * num_K + c_K + 1 < num_M * num_N * num_K){
+                        athread_dma_wait_value(&dma_get_A, 1);
+                        athread_rma_wait_value(&rma_local_A, 1);
+                        dma_get_A = 0;
+                        rma_local_A = 0;
+                        athread_dma_iget_stride(local_A_dma, 
+                                                next_A + next_A_offset, 
+                                                sizeof(float) * local_A_size, 
+                                                sizeof(float) * blk_K/8, 
+                                                sizeof(float) * A_step,
+                                                &dma_get_A);
+                    }
+                    if(rid == c_R && c_M * num_N * num_K + c_N * num_K + c_K + 1 < num_M * num_N * num_K){
+                        athread_dma_wait_value(&dma_get_B, 1);
+                        athread_rma_wait_value(&rma_local_B, 1);
+                        dma_get_B = 0;
+                        rma_local_B = 0;
+                        athread_dma_iget_stride(local_B_dma, 
+                                                next_B + next_B_offset, 
+                                                sizeof(float) * local_B_size, 
+                                                sizeof(float) * blk_N/8, 
+                                                sizeof(float) * B_step,
+                                                &dma_get_B);//这个get要护
                     }
                 }
             }
