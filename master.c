@@ -664,9 +664,9 @@ void gemm_rrr_all(float *A, float *B, float* C, int M, int N, int K){
     int temp_K = K > 64 ? K : 64;
 
     int ldm_use = 3 * (blk_M * blk_K + blk_K * blk_N + blk_M * blk_N) * sizeof(float)/64;
-#ifdef _SWOPS_DEBUG
-    printf("CRR ldm_use %d total_ldm %d\n", ldm_use, 220 * 1024);
-#endif
+
+    printf("M %d N %d K %d blk_M %d blk_N %d blk_K %d RRR ldm_use %d total_ldm %d\n", M, N, K, blk_M, blk_N, blk_K, ldm_use, 220 * 1024);
+
 
     int Ms = (temp_M / blk_M) * blk_M;
     int Ns = (temp_N / blk_N) * blk_N;
@@ -778,9 +778,9 @@ void gemm_rrr_all(float *A, float *B, float* C, int M, int N, int K){
 
 void test_gemm_rrr_all(){
     struct timeval tv1, tv2;
-    int M = 12800;
-    int N = 64;
-    int K = 32;
+    int M = 19200;
+    int N = 1280;
+    int K = 1280;
     float *A = malloc(sizeof(float) * M * K);
     float *B = malloc(sizeof(float) * K * N);
     float *C = malloc(sizeof(float) * M * N);
@@ -805,6 +805,8 @@ void test_gemm_rrr_all(){
         check_C[i] = 0;
     }
 
+    double flops = (double)2 * K / 1024 * N / 1024 * M / 1024;
+
     gettimeofday(&tv1, NULL);
 
     gemm_rrr_all(A, B, C, M, N, K);
@@ -812,9 +814,7 @@ void test_gemm_rrr_all(){
     gettimeofday(&tv2, NULL);
 
     double optimized_seconds = (tv2.tv_sec - tv1.tv_sec) + (tv2.tv_usec - tv1.tv_usec) * 1.0e-6;
-#ifdef _SWOPS_DEBUG
-    printf("Result of gemm rrr f32 cgn all, triple buffer, asm no: %lf\n", optimized_seconds);
-#endif
+    printf("Result of gemm rrr f32 cgn all, triple buffer with asm time: %lf flops %lfG\n", optimized_seconds, flops/optimized_seconds);
 
     
 
@@ -825,9 +825,7 @@ void test_gemm_rrr_all(){
     gettimeofday(&tv2, NULL);
 
     double origin_seconds = (tv2.tv_sec - tv1.tv_sec) + (tv2.tv_usec - tv1.tv_usec) * 1.0e-6;
-#ifdef _SWOPS_DEBUG
     printf("Result of gemm rrr f32 hardware cache: %lf\n", origin_seconds);
-#endif
 
     check_C_all_f32(C, check_C, M, N);
 
@@ -905,7 +903,7 @@ void test_gemm_rrr(){
     gettimeofday(&tv2, NULL);
 
     double optimized_seconds = (tv2.tv_sec - tv1.tv_sec) + (tv2.tv_usec - tv1.tv_usec) * 1.0e-6;
-    printf("Result of gemm rrr f32 one cgn, triple buffer, asm no: %lf\n", optimized_seconds);
+    printf("Result of gemm rrr f32 one cgn, triple buffer with asm no: %lf\n", optimized_seconds);
 
     //check_copy_border_f32(A, Ap, M, Ms, Me, blk_M, K, Ks, Ke, blk_K);
     //check_copy_border_f32(B, Bp, K, Ks, Ke, blk_K, N, Ns, Ne, blk_N);
