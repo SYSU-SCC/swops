@@ -284,12 +284,12 @@ void get_best_blk_rrr(int M, int N, int K, int *best_blk_M, int *best_blk_N, int
 
     int ldm_use = sizeof(float) * 3 * (temp_N * temp_K + temp_K * 64 + temp_N * 64) / 64;// try blk_M = 64
 
-    if(ldm_use < 215 * 1024 && temp_N % 64 == 0 && temp_K % 64 == 0){
+    if(ldm_use < 200 * 1024 && temp_N % 64 == 0 && temp_K % 64 == 0){
         blk_N = temp_N;
         blk_K = temp_K;
         for(blk_M = 64; blk_M <= temp_M && blk_M <= 8192 && blk_M * 6 <= temp_M + blk_M/2; blk_M += 64){
             ldm_use = sizeof(float) * 3 * (blk_N * blk_K + blk_K * blk_M + blk_N * blk_M ) / 64;
-            if(ldm_use < 215 * 1024){
+            if(ldm_use < 200 * 1024){
                 /* int bsizeN = blk_N / 8 * sizeof(float);
 			    int bsizeM = blk_M / 8 * sizeof(float);
 
@@ -317,7 +317,7 @@ void get_best_blk_rrr(int M, int N, int K, int *best_blk_M, int *best_blk_N, int
             for(blk_N = 64; blk_N <= temp_N && blk_N <= 8192; blk_N += 64){
                 for(blk_K = 64; blk_K <= temp_K && blk_K <= 8192; blk_K += 64){
                     ldm_use = sizeof(float) * 3 * (blk_N * blk_K + blk_K * blk_M + blk_N * blk_M ) / 64;
-                    if(ldm_use < 215 * 1024){
+                    if(ldm_use < 200 * 1024){
                         int bsizeN = blk_N / 8 * sizeof(float);
 			            int bsizeM = blk_M / 8 * sizeof(float);
 
@@ -366,12 +366,12 @@ void get_best_blk_crr(int M, int N, int K, int *best_blk_M, int *best_blk_N, int
 
     int ldm_use = sizeof(float) * 3 * (temp_N * 64 + 64 * temp_M + temp_N * temp_M) / 64;// try blk_M = 64
 
-    if(ldm_use < 220 * 1024 && temp_M % 64 == 0 && temp_N % 64 == 0){
+    if(ldm_use < 200 * 1024 && temp_M % 64 == 0 && temp_N % 64 == 0){
         blk_M = temp_M;
         blk_N = temp_N;
         for(blk_K = 64; blk_K <= temp_K && blk_K <= 8192 && blk_K * 6 <= temp_K + blk_K/2 ; blk_K += 64){
             ldm_use = sizeof(float) * 3 * (blk_N * blk_K + blk_K * blk_M + blk_N * blk_M ) / 64;
-            if(ldm_use < 220 * 1024){
+            if(ldm_use < 200 * 1024){
 
                 /* int bsizeN = blk_N / 8 * sizeof(float);
 			    int bsizeM = blk_M / 8 * sizeof(float);
@@ -405,7 +405,7 @@ void get_best_blk_crr(int M, int N, int K, int *best_blk_M, int *best_blk_N, int
                     
                     ldm_use = sizeof(float) * 3 * (blk_N * blk_K + blk_K * blk_M + blk_N * blk_M ) / 64;
                     
-                    if(ldm_use < 215 * 1024){
+                    if(ldm_use < 200 * 1024){
                         
                         int bsizeN = blk_N / 8 * sizeof(float);
 			            int bsizeM = blk_M / 8 * sizeof(float);
@@ -1385,7 +1385,7 @@ void gemm_rcr_all_cgn(float* A, float* B, float* C,int M,int N,int K){
     int local_C_LDM_size = blk_M * blk_N / 64;
 
     int Total_LDM_size = 3 * sizeof(float) * (local_A_LDM_size + local_B_LDM_size + local_C_LDM_size);
-    if(Total_LDM_size > 210 * 1024){
+    if(Total_LDM_size > 200 * 1024){
         printf("gemm_rcr_all_cgn Total_LDM_size > 210 * 1024 \n");
         return;
     }
@@ -2083,7 +2083,7 @@ void sw_bmm(const void *A, const void *B, void *C, size_t batch, size_t M,
     int best_blk_M = 32;
     int best_blk_N = 32;
     int best_blk_K = 32;
-    if((M * K + K * N + M * N) * 2 < 220 * 1024){
+    if((M * K + K * N + M * N) * 2 < 200 * 1024){
         best_blk_M = M;
         best_blk_N = N;
         best_blk_K = K;
@@ -2094,7 +2094,7 @@ void sw_bmm(const void *A, const void *B, void *C, size_t batch, size_t M,
             for(int blk_N = 32; blk_N <= N && blk_N <= 8192; blk_N += 32){
                 for(int blk_K = 32; blk_K <= K && blk_K <= 8192; blk_K += 32){
                     int ldm_use = sizeof(float) * 2 * (blk_N * blk_K + blk_K * blk_M + blk_N * blk_M);
-                    if(ldm_use < 215 * 1024){
+                    if(ldm_use < 200 * 1024){
                         int bsizeN = blk_N * sizeof(float);
 			            int bsizeM = blk_M * sizeof(float);
                         double T_dma = N / blk_N * M / blk_M * K / blk_K * (1.0 * blk_N * blk_K * sizeof(float) / 1e6 / MBW_map[bsizeN / 16 - 1] + 1.0 * blk_M * blk_K * sizeof(float) / 1e6 / MBW_map[bsizeN / 16 - 1]) +

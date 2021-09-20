@@ -175,7 +175,7 @@ inline void sw_slave_gemm_copy_all_back_add(const int ThreadsStart, const int Th
         return;
     }
 
-    int blk_Q = (sli_A * local_rows * We * sizeof(float) < 210 * 1024) ? local_rows : 210 * 1024 / (sli_A * We * sizeof(float));
+    int blk_Q = (sli_A * local_rows * We * sizeof(float) < 200 * 1024) ? local_rows : 200 * 1024 / (sli_A * We * sizeof(float));
 
     int rem_Q = blk_Q;
     if(blk_Q != local_rows){
@@ -280,7 +280,7 @@ inline void sw_slave_gemm_copy_all_back(const int ThreadsStart, const int Thread
         return;
     }
 
-    int blk_Q = (local_rows * We * sizeof(float) < 210 * 1024) ? local_rows : 210 * 1024 / (We * sizeof(float));
+    int blk_Q = (local_rows * We * sizeof(float) < 200 * 1024) ? local_rows : 200 * 1024 / (We * sizeof(float));
 
     int rem_Q = blk_Q;
     if(blk_Q != local_rows){
@@ -359,7 +359,7 @@ inline void sw_slave_gemm_copy_all(const int ThreadsStart, const int ThreadsEnd,
         return;
     }
 
-    int blk_Q = (local_rows * We * sizeof(float) < 210 * 1024) ? local_rows : 210 * 1024 / (We * sizeof(float));
+    int blk_Q = (local_rows * We * sizeof(float) < 200 * 1024) ? local_rows : 200 * 1024 / (We * sizeof(float));
 
     int rem_Q = blk_Q;
     if(blk_Q != local_rows){
@@ -566,7 +566,7 @@ inline void sw_slave_gemm_copy_border_back_f32_cgn(const int CGN_id,
         const size_t Cols_P = Hs / 32;
         const float* start_A = A + CPY_tid * Cols_P * W + Ws;
         const float* start_Ap = Ap + CPY_tid * Cols_P * We + Ws;
-        const size_t blk_P = Cols_P * blk_W * sizeof(float) < (210 * 1024) ? Cols_P : (210 * 1024) / (blk_W * sizeof(float));//larger than 220 * 1024 will cause memory access error
+        const size_t blk_P = Cols_P * blk_W * sizeof(float) < (200 * 1024) ? Cols_P : (200 * 1024) / (blk_W * sizeof(float));//larger than 220 * 1024 will cause memory access error
         const size_t num_P = (Cols_P + blk_P - 1) / blk_P;
         const size_t rem_blk_P = Cols_P - num_P * blk_P == 0 ? blk_P : Cols_P - (num_P - 1) * blk_P;
         const size_t rem_blk_W = W - Ws;
@@ -655,7 +655,7 @@ inline void sw_slave_gemm_copy_border_f32_cgn(const int CGN_id,
         const size_t Cols_P = Hs / 32;
         const float* src_P = src + CPY_tid * Cols_P * W + Ws;
         const float* dst_P = dst + CPY_tid * Cols_P * We + Ws;
-        const size_t blk_P = Cols_P * blk_W * sizeof(float) < (210 * 1024) ? Cols_P : (210 * 1024) / (blk_W * sizeof(float));//larger than 220 * 1024 will cause memory access error
+        const size_t blk_P = Cols_P * blk_W * sizeof(float) < (200 * 1024) ? Cols_P : (200 * 1024) / (blk_W * sizeof(float));//larger than 220 * 1024 will cause memory access error
         const size_t num_P = (Cols_P + blk_P - 1) / blk_P;
         const size_t rem_blk_P = Cols_P - num_P * blk_P == 0 ? blk_P : Cols_P - (num_P - 1) * blk_P;
         const size_t rem_blk_W = W - Ws;
