@@ -34,8 +34,8 @@ extern SLAVE_FUN(sw_slave_bmm_rcr)(sw_bmmPara_t);
 extern SLAVE_FUN(sw_slave_bmm_crr)(sw_bmmPara_t);
 extern void *para_cross; // param on cross seg
 
-int swptex_mm(const void *A, const void *B, void *C, size_t M, size_t N,
-              size_t K, int transposeA, int transposeB)
+int swptex_mm(const void *A, const void *B, void *C, int M, int N,
+              int K, int transposeA, int transposeB)
 {
     swptex_mmPara para;
     para.A = A;
@@ -282,14 +282,14 @@ void get_best_blk_rrr(int M, int N, int K, int *best_blk_M, int *best_blk_N, int
     int blk_N = 64;
     int blk_K = 64;
 
-    int ldm_use = sizeof(float) * 3 * (temp_N * temp_K + temp_K * 64 + temp_N * 64) / 64;// try blk_M = 64
+    int ldm_use = sizeof(float) * (4 * temp_N * temp_K + 4 * temp_K * 64 + 3 * temp_N * 64) / 64;// try blk_M = 64
 
-    if(ldm_use < 200 * 1024 && temp_N % 64 == 0 && temp_K % 64 == 0){
+    if(ldm_use < 210 * 1024 && temp_N % 64 == 0 && temp_K % 64 == 0){
         blk_N = temp_N;
         blk_K = temp_K;
         for(blk_M = 64; blk_M <= temp_M && blk_M <= 8192 && blk_M * 6 <= temp_M + blk_M/2; blk_M += 64){
-            ldm_use = sizeof(float) * 3 * (blk_N * blk_K + blk_K * blk_M + blk_N * blk_M ) / 64;
-            if(ldm_use < 200 * 1024){
+            ldm_use = sizeof(float) * (4 * blk_N * blk_K + 4 * blk_K * blk_M + 3 * blk_N * blk_M ) / 64;
+            if(ldm_use < 210 * 1024){
                 /* int bsizeN = blk_N / 8 * sizeof(float);
 			    int bsizeM = blk_M / 8 * sizeof(float);
 
@@ -316,8 +316,8 @@ void get_best_blk_rrr(int M, int N, int K, int *best_blk_M, int *best_blk_N, int
         for(blk_M = 64; blk_M <= temp_M && blk_M <= 8192; blk_M += 64){
             for(blk_N = 64; blk_N <= temp_N && blk_N <= 8192; blk_N += 64){
                 for(blk_K = 64; blk_K <= temp_K && blk_K <= 8192; blk_K += 64){
-                    ldm_use = sizeof(float) * 3 * (blk_N * blk_K + blk_K * blk_M + blk_N * blk_M ) / 64;
-                    if(ldm_use < 200 * 1024){
+                    ldm_use = sizeof(float) * (4 * blk_N * blk_K + 4 * blk_K * blk_M + 3 * blk_N * blk_M ) / 64;
+                    if(ldm_use < 210 * 1024 && temp_N % blk_N == 0 && temp_K % blk_K == 0 && blk_M * 6 <= temp_M + blk_M){
                         int bsizeN = blk_N / 8 * sizeof(float);
 			            int bsizeM = blk_M / 8 * sizeof(float);
 
@@ -364,14 +364,14 @@ void get_best_blk_crr(int M, int N, int K, int *best_blk_M, int *best_blk_N, int
     int blk_N = 64;
     int blk_K = 64;
 
-    int ldm_use = sizeof(float) * 3 * (temp_N * 64 + 64 * temp_M + temp_N * temp_M) / 64;// try blk_M = 64
+    int ldm_use = sizeof(float) * (4 * temp_N * 64 + 4 * 64 * temp_M + 3 * temp_N * temp_M) / 64;// try blk_M = 64
 
-    if(ldm_use < 200 * 1024 && temp_M % 64 == 0 && temp_N % 64 == 0){
+    if(ldm_use < 210 * 1024 && temp_M % 64 == 0 && temp_N % 64 == 0){
         blk_M = temp_M;
         blk_N = temp_N;
         for(blk_K = 64; blk_K <= temp_K && blk_K <= 8192 && blk_K * 6 <= temp_K + blk_K/2 ; blk_K += 64){
-            ldm_use = sizeof(float) * 3 * (blk_N * blk_K + blk_K * blk_M + blk_N * blk_M ) / 64;
-            if(ldm_use < 200 * 1024){
+            ldm_use = sizeof(float) * (4 * blk_N * blk_K + 4 * blk_K * blk_M + 3 * blk_N * blk_M) / 64;
+            if(ldm_use < 210 * 1024){
 
                 /* int bsizeN = blk_N / 8 * sizeof(float);
 			    int bsizeM = blk_M / 8 * sizeof(float);
@@ -403,9 +403,9 @@ void get_best_blk_crr(int M, int N, int K, int *best_blk_M, int *best_blk_N, int
             for(blk_N = 64; blk_N <= temp_N && blk_N <= 8192; blk_N += 64){
                 for(blk_K = 64; blk_K <= temp_K && blk_K <= 8192; blk_K += 64){
                     
-                    ldm_use = sizeof(float) * 3 * (blk_N * blk_K + blk_K * blk_M + blk_N * blk_M ) / 64;
+                    ldm_use = sizeof(float) * (4 * blk_N * blk_K + 4 * blk_K * blk_M + 3 * blk_N * blk_M ) / 64;
                     
-                    if(ldm_use < 200 * 1024){
+                    if(ldm_use < 210 * 1024 && temp_M % blk_M == 0 && temp_N % blk_N == 0 && blk_K * 6 <= temp_K + blk_K){
                         
                         int bsizeN = blk_N / 8 * sizeof(float);
 			            int bsizeM = blk_M / 8 * sizeof(float);
@@ -467,9 +467,9 @@ void gemm_crr_all(float* A, float* B, float* C, int M, int N, int K){
     int Ne = temp_N % blk_N != 0 ? Ns + blk_N : Ns;
     int Ke = temp_K % blk_K != 0 ? Ks + blk_K : Ks;
 
-    int ldm_use = 3 * (blk_M * blk_K + blk_K * blk_N + blk_M * blk_N) * sizeof(float)/64;
+    int ldm_use = (4 * blk_M * blk_K + 4 * blk_K * blk_N + 3 * blk_M * blk_N) * sizeof(float)/64;
 #ifdef _SWOPS_DEBUG
-    printf("CRR M %d N %d K %d blk_M %d blk_N %d blk_K %d\n", M, N, K, blk_M, blk_N, blk_K);
+    printf("CRR M %d N %d K %d\nMs %d Ns %d Ks %d\nMe %d Ne %d Ke %d\nblk_M %d blk_N %d blk_K %d\n", M, N, K, Ms, Ns, Ks, Me, Ne, Ke, blk_M, blk_N, blk_K);
     printf("CRR ldm_use %d total_ldm %d\n", ldm_use, 220 * 1024);
 #endif
     float* Ap = malloc(sizeof(float) * Me * Ke);
@@ -585,9 +585,9 @@ void gemm_crr_all(float* A, float* B, float* C, int M, int N, int K){
 
 void test_gemm_crr_all(){
     struct timeval tv1, tv2;
-    int M = 32;
-    int N = 768;
-    int K = 12800;
+    int M = 768;
+    int N = 3072;
+    int K = 400;
     float *A = malloc(sizeof(float) * M * K);
     float *B = malloc(sizeof(float) * K * N);
     float *C = malloc(sizeof(float) * M * N);
@@ -620,7 +620,7 @@ void test_gemm_crr_all(){
 
     double optimized_seconds = (tv2.tv_sec - tv1.tv_sec) + (tv2.tv_usec - tv1.tv_usec) * 1.0e-6;
 #ifdef _SWOPS_DEBUG
-    printf("Result of gemm crr f32 cgn all, triple buffer, asm no: %lf\n", optimized_seconds);
+    printf("Result of gemm crr f32 cgn all, triple buffer with asm: %lf\n", optimized_seconds);
 #endif
     
 
@@ -663,7 +663,7 @@ void gemm_rrr_all(float *A, float *B, float* C, int M, int N, int K){
     int temp_N = N > 64 ? N : 64;
     int temp_K = K > 64 ? K : 64;
 
-    int ldm_use = 3 * (blk_M * blk_K + blk_K * blk_N + blk_M * blk_N) * sizeof(float)/64;
+    int ldm_use = (4 * blk_M * blk_K + 4 * blk_K * blk_N + 3 * blk_M * blk_N) * sizeof(float)/64;
 
     printf("M %d N %d K %d blk_M %d blk_N %d blk_K %d RRR ldm_use %d total_ldm %d\n", M, N, K, blk_M, blk_N, blk_K, ldm_use, 220 * 1024);
 
@@ -778,9 +778,9 @@ void gemm_rrr_all(float *A, float *B, float* C, int M, int N, int K){
 
 void test_gemm_rrr_all(){
     struct timeval tv1, tv2;
-    int M = 19200;
-    int N = 1280;
-    int K = 1280;
+    int M = 400;
+    int N = 3072;
+    int K = 768;
     float *A = malloc(sizeof(float) * M * K);
     float *B = malloc(sizeof(float) * K * N);
     float *C = malloc(sizeof(float) * M * N);
@@ -814,7 +814,7 @@ void test_gemm_rrr_all(){
     gettimeofday(&tv2, NULL);
 
     double optimized_seconds = (tv2.tv_sec - tv1.tv_sec) + (tv2.tv_usec - tv1.tv_usec) * 1.0e-6;
-    printf("Result of gemm rrr f32 cgn all, triple buffer with asm time: %lf flops %lfG\n", optimized_seconds, flops/optimized_seconds);
+    printf("Result of gemm rrr f32 cgn all, quadruple buffer with asm time: %lf flops %lfG\n", optimized_seconds, flops/optimized_seconds);
 
     
 
@@ -838,11 +838,11 @@ void test_gemm_rrr_all(){
 void test_gemm_rrr(){
     struct timeval tv1, tv2;
     int M = 12800;
-    int N = 768;
-    int K = 64;
-    int blk_M = 1152;
-    int blk_N = 768;
-    int blk_K = 64;
+    int N = 128;
+    int K = 1024;
+    int blk_M = 640;
+    int blk_N = 128;
+    int blk_K = 1024;
     int bn = 1;// six gemm
     float *A = malloc(sizeof(float) * bn * M * K);
     float *B = malloc(sizeof(float) * bn * K * N);
@@ -2000,8 +2000,8 @@ void test_gemm_rcr(){
     free(check_C);
 }
 
-void sw_bmm_rrr(const void *A, const void *B, void *C, size_t batch, 
-                size_t M, size_t N, size_t K, size_t blk_M, size_t blk_N, size_t blk_K){
+void sw_bmm_rrr(const void *A, const void *B, void *C, int batch, 
+                int M, int N, int K, int blk_M, int blk_N, int blk_K){
     sw_bmmPara para;
     para.A = A;
     para.B = B;
@@ -2026,8 +2026,8 @@ void sw_bmm_rrr(const void *A, const void *B, void *C, size_t batch,
     athread_join_cgs();
 }
 
-void sw_bmm_rcr(const void *A, const void *B, void *C, size_t batch, 
-                size_t M, size_t N, size_t K, size_t blk_M, size_t blk_N, size_t blk_K){
+void sw_bmm_rcr(const void *A, const void *B, void *C, int batch, 
+                int M, int N, int K, int blk_M, int blk_N, int blk_K){
     sw_bmmPara para;
     para.A = A;
     para.B = B;
@@ -2052,8 +2052,8 @@ void sw_bmm_rcr(const void *A, const void *B, void *C, size_t batch,
     athread_join_cgs();
 }
 
-void sw_bmm_crr(const void *A, const void *B, void *C, size_t batch, 
-                size_t M, size_t N, size_t K, size_t blk_M, size_t blk_N, size_t blk_K){
+void sw_bmm_crr(const void *A, const void *B, void *C, int batch, 
+                int M, int N, int K, int blk_M, int blk_N, int blk_K){
     sw_bmmPara para;
     para.A = A;
     para.B = B;
@@ -2078,8 +2078,8 @@ void sw_bmm_crr(const void *A, const void *B, void *C, size_t batch,
     athread_join_cgs();
 }
 
-void sw_bmm(const void *A, const void *B, void *C, size_t batch, size_t M,
-               size_t N, size_t K, int transposeA, int transposeB){
+void sw_bmm(const void *A, const void *B, void *C, int batch, int M,
+               int N, int K, int transposeA, int transposeB){
     int best_blk_M = 32;
     int best_blk_N = 32;
     int best_blk_K = 32;
@@ -2220,8 +2220,8 @@ void test_sw_bmm_all(){
     free(check_C);
 }
 
-int swptex_bmm(const void *A, const void *B, void *C, size_t batch, size_t M,
-               size_t N, size_t K, int transposeA, int transposeB)
+int swptex_bmm(const void *A, const void *B, void *C, int batch, int M,
+               int N, int K, int transposeA, int transposeB)
 {
     int bn;
     for (bn = 0; bn < batch; ++bn)
@@ -2231,7 +2231,7 @@ int swptex_bmm(const void *A, const void *B, void *C, size_t batch, size_t M,
     }
 }
 
-int swptex_softmax(void *x_, size_t M, size_t N)
+int swptex_softmax(void *x_, int M, int N)
 {
     // inplace
     float *x = (float *)x_;
@@ -2260,7 +2260,7 @@ int swptex_softmax(void *x_, size_t M, size_t N)
     }
 }
 
-int swptex_dsoftmax(void *dy_, const void *y_, size_t M, size_t N)
+int swptex_dsoftmax(void *dy_, const void *y_, int M, int N)
 {
     // inplace
     float *dy = (float *)dy_;
@@ -2282,7 +2282,7 @@ int swptex_dsoftmax(void *dy_, const void *y_, size_t M, size_t N)
 }
 
 int swptex_split_and_transpose(void *QKV_, void *Q_, void *K_, void *V_,
-                               size_t B, size_t N, size_t S, size_t D)
+                               int B, int N, int S, int D)
 {
     float *QKV = (float *)QKV_;
     float *Q = (float *)Q_;
@@ -2310,7 +2310,7 @@ int swptex_split_and_transpose(void *QKV_, void *Q_, void *K_, void *V_,
 }
 
 int swptex_transpose_and_merge(void *QKV_, void *Q_, void *K_, void *V_,
-                               size_t B, size_t N, size_t S, size_t D)
+                               int B, int N, int S, int D)
 {
     float *QKV = (float *)QKV_;
     float *Q = (float *)Q_;
@@ -2334,8 +2334,8 @@ int swptex_transpose_and_merge(void *QKV_, void *Q_, void *K_, void *V_,
     }
 }
 
-int swptex_split(const void *QKV_, void *QKVT_, size_t B, size_t N, size_t S,
-                 size_t D)
+int swptex_split(const void *QKV_, void *QKVT_, int B, int N, int S,
+                 int D)
 {
     float *QKV = (float *)QKV_;
     float *QKVT = (float *)QKVT_;
@@ -2353,8 +2353,8 @@ int swptex_split(const void *QKV_, void *QKVT_, size_t B, size_t N, size_t S,
     }
 }
 
-int swptex_merge(const void *QKV_, void *QKVT_, size_t B, size_t N, size_t S,
-                 size_t D)
+int swptex_merge(const void *QKV_, void *QKVT_, int B, int N, int S,
+                 int D)
 {
     float *QKV = (float *)QKV_;
     float *QKVT = (float *)QKVT_;
@@ -2372,7 +2372,7 @@ int swptex_merge(const void *QKV_, void *QKVT_, size_t B, size_t N, size_t S,
     }
 }
 
-int swptex_scale(void *x_, size_t len, float scaling)
+int swptex_scale(void *x_, int len, float scaling)
 {
     float *x = (float *)x_;
     int i;

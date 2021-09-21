@@ -437,22 +437,22 @@ void sw_slave_gemm_copy_all_f32(sw_gemmPara *_){
     const float *src_Cp = para->Cp;
     const float *src_T = para->T;
     const float *src_Tp = para->Tp;
-    const size_t slice = para->slice;
-    const size_t M = para->M;
-    const size_t Ms = para->Ms;
-    const size_t Me = para->Me;
-    const size_t Mp = para->Mp;
-    const size_t N = para->N;
-    const size_t Ns = para->Ns;
-    const size_t Ne = para->Ne;
-    const size_t Np = para->Np;
-    const size_t K = para->K;
-    const size_t Ks = para->Ks;
-    const size_t Ke = para->Ke;
-    const size_t Kp = para->Kp;
-    const size_t blk_M = para->blk_M;
-    const size_t blk_N = para->blk_N;
-    const size_t blk_K = para->blk_K;
+    const int slice = para->slice;
+    const int M = para->M;
+    const int Ms = para->Ms;
+    const int Me = para->Me;
+    const int Mp = para->Mp;
+    const int N = para->N;
+    const int Ns = para->Ns;
+    const int Ne = para->Ne;
+    const int Np = para->Np;
+    const int K = para->K;
+    const int Ks = para->Ks;
+    const int Ke = para->Ke;
+    const int Kp = para->Kp;
+    const int blk_M = para->blk_M;
+    const int blk_N = para->blk_N;
+    const int blk_K = para->blk_K;
     sw_slave_gemm_copy_all(0, 383, src_A, src_Ap,
                             M, Me,
                             K, Ke);
@@ -522,19 +522,19 @@ void sw_slave_gemm_copy_all_H_f32(sw_gemmPara *_){
     const float *src_Cp = para->Cp;
     const float *src_T = para->T;
     const float *src_Tp = para->Tp;
-    const size_t slice = para->slice;
-    const size_t M = para->M;
-    const size_t Ms = para->Ms;
-    const size_t Me = para->Me;
-    const size_t N = para->N;
-    const size_t Ns = para->Ns;
-    const size_t Ne = para->Ne;
-    const size_t K = para->K;
-    const size_t Ks = para->Ks;
-    const size_t Ke = para->Ke;
-    const size_t blk_M = para->blk_M;
-    const size_t blk_N = para->blk_N;
-    const size_t blk_K = para->blk_K;
+    const int slice = para->slice;
+    const int M = para->M;
+    const int Ms = para->Ms;
+    const int Me = para->Me;
+    const int N = para->N;
+    const int Ns = para->Ns;
+    const int Ne = para->Ne;
+    const int K = para->K;
+    const int Ks = para->Ks;
+    const int Ke = para->Ke;
+    const int blk_M = para->blk_M;
+    const int blk_N = para->blk_N;
+    const int blk_K = para->blk_K;
     if(_MYID == 0){
         printf("processing copy all on H slaves\n");
     }
@@ -557,22 +557,22 @@ inline void sw_slave_gemm_copy_border_back_f32_cgn(const int CGN_id,
         }
     }
     
-    size_t HW_size = H * W;
+    int HW_size = H * W;
     if(CRTS_tid < 32){
         if(Ws == We){
             return;
         }
         const int CPY_tid = CRTS_tid;
-        const size_t Cols_P = Hs / 32;
+        const int Cols_P = Hs / 32;
         const float* start_A = A + CPY_tid * Cols_P * W + Ws;
         const float* start_Ap = Ap + CPY_tid * Cols_P * We + Ws;
-        const size_t blk_P = Cols_P * blk_W * sizeof(float) < (200 * 1024) ? Cols_P : (200 * 1024) / (blk_W * sizeof(float));//larger than 220 * 1024 will cause memory access error
-        const size_t num_P = (Cols_P + blk_P - 1) / blk_P;
-        const size_t rem_blk_P = Cols_P - num_P * blk_P == 0 ? blk_P : Cols_P - (num_P - 1) * blk_P;
-        const size_t rem_blk_W = W - Ws;
-        const size_t local_P_size = blk_P * blk_W;
-        size_t curr_blk_P = blk_P;
-        size_t next_blk_P = blk_P;
+        const int blk_P = Cols_P * blk_W * sizeof(float) < (200 * 1024) ? Cols_P : (200 * 1024) / (blk_W * sizeof(float));//larger than 220 * 1024 will cause memory access error
+        const int num_P = (Cols_P + blk_P - 1) / blk_P;
+        const int rem_blk_P = Cols_P - num_P * blk_P == 0 ? blk_P : Cols_P - (num_P - 1) * blk_P;
+        const int rem_blk_W = W - Ws;
+        const int local_P_size = blk_P * blk_W;
+        int curr_blk_P = blk_P;
+        int next_blk_P = blk_P;
         float* local_P = ldm_malloc(blk_P * blk_W * sizeof(float));
         /* if(local_P == 0){
             printf("local_P ldm_malloc error!!! %d\n", _MYID);
@@ -607,9 +607,9 @@ inline void sw_slave_gemm_copy_border_back_f32_cgn(const int CGN_id,
         }
         //printf("Cores %d Copying Border Back\n", CRTS_tid);
         const int CPY_tid = CRTS_tid - 32;// 0 ~ 32
-        const size_t Cols_Q = blk_H / 32;
-        const size_t num_Q = Cols_Q;
-        const size_t rem_blk_H = H - Hs;
+        const int Cols_Q = blk_H / 32;
+        const int num_Q = Cols_Q;
+        const int rem_blk_H = H - Hs;
         const float* start_A = A + Hs * W + CPY_tid * Cols_Q * W;
         const float* start_Ap = Ap + Hs * We + CPY_tid * Cols_Q * We;
         float* local_Q = ldm_malloc(We * sizeof(float));
@@ -645,23 +645,23 @@ inline void sw_slave_gemm_copy_border_f32_cgn(const int CGN_id,
             printf("error in sw_slave_gemm_copy_border_f32_cgn\n blk_W: %d > 30720",blk_W);
         }
     }
-    size_t HW_size = H*W;
+    int HW_size = H*W;
     if(CRTS_tid < 32){
         //do dstp
         if(Ws == We){
             return;
         }
         const int CPY_tid = CRTS_tid;// 0 ~ 31
-        const size_t Cols_P = Hs / 32;
+        const int Cols_P = Hs / 32;
         const float* src_P = src + CPY_tid * Cols_P * W + Ws;
         const float* dst_P = dst + CPY_tid * Cols_P * We + Ws;
-        const size_t blk_P = Cols_P * blk_W * sizeof(float) < (200 * 1024) ? Cols_P : (200 * 1024) / (blk_W * sizeof(float));//larger than 220 * 1024 will cause memory access error
-        const size_t num_P = (Cols_P + blk_P - 1) / blk_P;
-        const size_t rem_blk_P = Cols_P - num_P * blk_P == 0 ? blk_P : Cols_P - (num_P - 1) * blk_P;
-        const size_t rem_blk_W = W - Ws;
-        const size_t local_P_size = blk_P * blk_W;
-        size_t curr_blk_P = blk_P;
-        size_t next_blk_P = blk_P;
+        const int blk_P = Cols_P * blk_W * sizeof(float) < (200 * 1024) ? Cols_P : (200 * 1024) / (blk_W * sizeof(float));//larger than 220 * 1024 will cause memory access error
+        const int num_P = (Cols_P + blk_P - 1) / blk_P;
+        const int rem_blk_P = Cols_P - num_P * blk_P == 0 ? blk_P : Cols_P - (num_P - 1) * blk_P;
+        const int rem_blk_W = W - Ws;
+        const int local_P_size = blk_P * blk_W;
+        int curr_blk_P = blk_P;
+        int next_blk_P = blk_P;
         float* local_P = ldm_malloc(blk_P * blk_W * sizeof(float));
         /* if(local_P == 0){
             printf("local_P ldm_malloc error!!! %d\n", _MYID);
@@ -698,9 +698,9 @@ inline void sw_slave_gemm_copy_border_f32_cgn(const int CGN_id,
             return;
         }
         const int CPY_tid = CRTS_tid - 32;// 0 ~ 32
-        const size_t Cols_Q = blk_H / 32;
-        const size_t num_Q = Cols_Q;
-        const size_t rem_blk_H = H - Hs;
+        const int Cols_Q = blk_H / 32;
+        const int num_Q = Cols_Q;
+        const int rem_blk_H = H - Hs;
         const float* src_Q = src + Hs * W + CPY_tid * Cols_Q * W;
         const float* dst_Q = dst + Hs * We + CPY_tid * Cols_Q * We;
         float* local_Q = ldm_malloc(We * sizeof(float));
@@ -736,26 +736,26 @@ void sw_slave_gemm_crr_cgn(const int CGN_id,
                            const float* A, const float* Ap,
                            const float* B, const float* Bp,
                            const float* C, const float* Cp,
-                           const size_t M, const size_t Ms, const size_t Me, const size_t blk_M,
-                           const size_t N, const size_t Ns, const size_t Ne, const size_t blk_N,
-                           const size_t K, const size_t Ks, const size_t Ke, const size_t blk_K){
+                           const int M, const int Ms, const int Me, const int blk_M,
+                           const int N, const int Ns, const int Ne, const int blk_N,
+                           const int K, const int Ks, const int Ke, const int blk_K){
     if(CRTS_cgn != CGN_id){
         return;
     }
     const int cid = CRTS_tid % 8;
     const int rid = CRTS_tid / 8;
 
-    const size_t num_M = (M + blk_M - 1) / blk_M;
-    const size_t num_N = (N + blk_N - 1) / blk_N;
-    const size_t num_K = (K + blk_K - 1) / blk_K;
+    const int num_M = (M + blk_M - 1) / blk_M;
+    const int num_N = (N + blk_N - 1) / blk_N;
+    const int num_K = (K + blk_K - 1) / blk_K;
 
-    const size_t rem_blk_M = num_M * blk_M - M == 0 ? blk_M : M - (num_M-1) * blk_M;
-    const size_t rem_blk_N = num_N * blk_N - N == 0 ? blk_N : N - (num_N-1) * blk_N;
-    const size_t rem_blk_K = num_K * blk_K - K == 0 ? blk_K : K - (num_K-1) * blk_K;
+    const int rem_blk_M = num_M * blk_M - M == 0 ? blk_M : M - (num_M-1) * blk_M;
+    const int rem_blk_N = num_N * blk_N - N == 0 ? blk_N : N - (num_N-1) * blk_N;
+    const int rem_blk_K = num_K * blk_K - K == 0 ? blk_K : K - (num_K-1) * blk_K;
 
-    const size_t local_A_size = blk_M * blk_K / 64;
-    const size_t local_B_size = blk_K * blk_N / 64;
-    const size_t local_C_size = blk_M * blk_N / 64;
+    const int local_A_size = blk_M * blk_K / 64;
+    const int local_B_size = blk_K * blk_N / 64;
+    const int local_C_size = blk_M * blk_N / 64;
 
     float* local_A = (float*)ldm_malloc(sizeof(float) * 2 * blk_M * blk_K / 64);
     float* local_B = (float*)ldm_malloc(sizeof(float) * 2 * blk_K * blk_N / 64);
@@ -778,25 +778,25 @@ void sw_slave_gemm_crr_cgn(const int CGN_id,
     float* next_C = C;
     float* curr_C = C;
 
-    size_t A_step = M - blk_M/8;
-    size_t B_step = N - blk_N/8;
-    size_t C_step = N - blk_N/8;
+    int A_step = M - blk_M/8;
+    int B_step = N - blk_N/8;
+    int C_step = N - blk_N/8;
 
-    size_t curr_M = M;
-    size_t curr_N = N;
-    size_t curr_K = K;
+    int curr_M = M;
+    int curr_N = N;
+    int curr_K = K;
 
-    size_t curr_blk_M = blk_M;
-    size_t curr_blk_N = blk_N;
-    size_t curr_blk_K = blk_K;
+    int curr_blk_M = blk_M;
+    int curr_blk_N = blk_N;
+    int curr_blk_K = blk_K;
 
-    size_t next_A_offset = 0;
-    size_t next_B_offset = 0;
-    size_t next_C_offset = 0;
+    int next_A_offset = 0;
+    int next_B_offset = 0;
+    int next_C_offset = 0;
 
-    size_t next_blk_M = blk_M;
-    size_t next_blk_N = blk_N;
-    size_t next_blk_K = blk_K;
+    int next_blk_M = blk_M;
+    int next_blk_N = blk_N;
+    int next_blk_K = blk_K;
 
     volatile athread_rply_t dma_get_A = 0, dma_get_B = 0, dma_put_C = 0;
     volatile athread_rply_t rma_local_A = 0, rma_local_B = 0;
@@ -1009,14 +1009,295 @@ void sw_slave_gemm_crr_cgn(const int CGN_id,
     ldm_free(local_C_dma, sizeof(float) * blk_M * blk_N / 64);
 }
 
+void sw_slave_gemm_crr_quad_cgn(const int CGN_id,
+                                const float* A, const float* Ap,
+                                const float* B, const float* Bp,
+                                const float* C, const float* Cp,
+                                const int M, const int Ms, const int Me, const int blk_M,
+                                const int N, const int Ns, const int Ne, const int blk_N,
+                                const int K, const int Ks, const int Ke, const int blk_K){
+    if(CRTS_cgn != CGN_id){
+        return;
+    }
+    const int cid = CRTS_tid % 8;
+    const int rid = CRTS_tid / 8;
 
-void sw_slave_gemm_rrr_cgn(const int CGN_id,
-                           const float* A, const float* Ap,
-                           const float* B, const float* Bp,
-                           const float* C, const float* Cp,
-                           const size_t M, const size_t Ms, const size_t Me, const size_t blk_M,
-                           const size_t N, const size_t Ns, const size_t Ne, const size_t blk_N,
-                           const size_t K, const size_t Ks, const size_t Ke, const size_t blk_K){
+    const int Md = blk_M/8;
+    const int Nd = blk_N/8;
+    const int Kd = blk_K/8;
+
+    const int num_M = (M + blk_M - 1) / blk_M;
+    const int num_N = (N + blk_N - 1) / blk_N;
+    const int num_K = (K + blk_K - 1) / blk_K;
+
+    const int rem_blk_M = num_M * blk_M - M == 0 ? blk_M : M - (num_M-1) * blk_M;
+    const int rem_blk_N = num_N * blk_N - N == 0 ? blk_N : N - (num_N-1) * blk_N;
+    const int rem_blk_K = num_K * blk_K - K == 0 ? blk_K : K - (num_K-1) * blk_K;
+
+    const int local_A_size = blk_M * blk_K / 64;
+    const int local_B_size = blk_K * blk_N / 64;
+    const int local_C_size = blk_M * blk_N / 64;
+
+    float* local_A = (float*)ldm_malloc(sizeof(float) * 2 * blk_M * blk_K / 64);
+    float* local_B = (float*)ldm_malloc(sizeof(float) * 2 * blk_K * blk_N / 64);
+    double* local_C = (double*)ldm_malloc(sizeof(double) * blk_M * blk_N / 64);
+
+    float* local_A_dma = (float*)ldm_malloc(sizeof(float) * 2 * blk_M * blk_K / 64);
+    float* local_B_dma = (float*)ldm_malloc(sizeof(float) * 2 * blk_K * blk_N / 64);
+    float* local_C_dma = (float*)ldm_malloc(sizeof(float) * blk_M * blk_N / 64);
+
+    const float* start_A = A + cid * blk_K/8 * M + rid * blk_M/8;
+    const float* start_B = B + rid * blk_K/8 * N + cid * blk_N/8;
+    const float* start_C = C + rid * blk_M/8 * N + cid * blk_N/8;
+
+    const float* start_Ap = Ap + cid * blk_K/8 * Me + rid * blk_M/8;
+    const float* start_Bp = Bp + rid * blk_K/8 * Ne + cid * blk_N/8;
+    const float* start_Cp = Cp + rid * blk_M/8 * Ne + cid * blk_N/8;
+
+    float* next_A = A;
+    float* next_B = B;
+    float* next_C = C;
+    float* curr_C = C;
+
+    int A_step = M - blk_M/8;
+    int B_step = N - blk_N/8;
+    int C_step = N - blk_N/8;
+
+    int curr_M = M;
+    int curr_N = N;
+    int curr_K = K;
+
+    int curr_blk_M = blk_M;
+    int curr_blk_N = blk_N;
+    int curr_blk_K = blk_K;
+
+    int next_A_offset = 0;
+    int next_B_offset = 0;
+    int next_C_offset = 0;
+
+    int next_blk_M = blk_M;
+    int next_blk_N = blk_N;
+    int next_blk_K = blk_K;
+
+    volatile athread_rply_t dma_get_A = 0, dma_get_B = 0, dma_put_C = 0;
+    volatile athread_rply_t rma_local_A = 0, rma_local_B = 0;
+    volatile athread_rply_t rma_A[8] = {0,0,0,0,0,0,0,0}, rma_B[8] = {0,0,0,0,0,0,0,0};
+
+    volatile int double_buffer_A = 0, double_buffer_B = 0; //for rma
+    volatile int double_buffer_DMA = 0;
+
+    /* if(CRTS_tid ==0){
+        printf("CGN %d\nM %d Ms %d Me %d\nN %d Ns %d Ne %d\nK %d Ks %d Ke %d\n", 
+                CRTS_cgn, M, Ms, Me, N, Ns, Ne, K, Ks, Ke);
+    } */
+
+    athread_dma_iget_stride(local_A_dma + (1 - double_buffer_DMA) * local_A_size, 
+                            start_A, 
+                            sizeof(float) * local_A_size, 
+                            sizeof(float) * blk_M/8, 
+                            sizeof(float) * A_step,
+                            &dma_get_A);
+    athread_dma_iget_stride(local_B_dma + (1 - double_buffer_DMA) * local_B_size, 
+                            start_B, 
+                            sizeof(float) * local_B_size, 
+                            sizeof(float) * blk_N/8, 
+                            sizeof(float) * B_step,
+                            &dma_get_B);
+    athread_dma_wait_value(&dma_get_A, 1);
+    athread_dma_wait_value(&dma_get_B, 1);
+    dma_get_A = 0;
+    dma_get_B = 0;
+    for(int c_M = 0; c_M < num_M; c_M++){
+        curr_blk_M = c_M < num_M - 1 ? blk_M : rem_blk_M;
+        for(int c_N = 0; c_N < num_N; c_N++){
+        curr_blk_N = c_N < num_N - 1 ? blk_N : rem_blk_N;
+            for(int i = 0; i < local_C_size; i++){
+                local_C[i] = 0;
+            }
+            for(int i = 0; i < local_C_size; i++){
+                local_C_dma[i] = 0;
+            }
+            for(int c_K = 0; c_K < num_K; c_K++){
+                curr_blk_K = c_K < num_K - 1 ? blk_K : rem_blk_K;
+                if(c_M * num_N * num_K + c_N * num_K + c_K + 1 < num_M * num_N * num_K){
+                    next_blk_M = blk_M;
+                    next_blk_N = blk_N;
+                    next_blk_K = blk_K;
+                    if(c_K == num_K - 2){
+                        next_blk_K = rem_blk_K;
+                    }
+                    if(c_K == num_K - 1){
+                        next_blk_K = blk_K;
+                        if(c_N == num_N - 2){
+                            next_blk_N = rem_blk_N;
+                        }
+                        if(c_N == num_N - 1){
+                            next_blk_N = blk_N;
+                            if(c_M == num_M - 2){
+                                next_blk_M = rem_blk_M;
+                            }
+                        }
+                    }//here's bugs
+                    if(c_M == num_M - 1){
+                        next_blk_M = rem_blk_M;
+                    }
+                    //There must be more conditions
+                    if(c_N == num_N - 1 && c_K != num_K - 1){//not the last c_K
+                        next_blk_N = rem_blk_N;
+                    }
+                    //All conditions have been checked
+                    if(next_blk_K != blk_K || next_blk_M != blk_M){
+                        next_A = start_Ap;
+                        curr_M = Me;
+                        A_step = Me - blk_M/8;
+                    }
+                    else{
+                        next_A = start_A;
+                        curr_M = M;
+                        A_step = M - blk_M/8;
+                    }
+                    if(next_blk_K != blk_K || next_blk_N != blk_N){
+                        next_B = start_Bp;
+                        curr_N = Ne;
+                        B_step = Ne - blk_N/8;
+                    }
+                    else{
+                        next_B = start_B;
+                        curr_N = N;
+                        B_step = N - blk_N/8;
+                    }
+                    if(c_K == num_K - 1){
+                        if(c_N == num_N - 1){
+                            next_A_offset = (c_M + 1) * blk_M;
+                            next_B_offset = 0;
+                        }
+                        else{
+                            next_A_offset = c_M * blk_M;
+                            next_B_offset = (c_N + 1) * blk_N;
+                        }
+                    }
+                    else{
+                        next_A_offset = (c_K + 1) * blk_K * curr_M + c_M * blk_M;
+                        next_B_offset = (c_K + 1) * blk_K * curr_N + c_N * blk_N;
+                    }
+                    athread_dma_iget_stride(local_A_dma + double_buffer_DMA * local_A_size, 
+                                            next_A + next_A_offset, 
+                                            sizeof(float) * local_A_size, 
+                                            sizeof(float) * blk_M/8, 
+                                            sizeof(float) * A_step,
+                                            &dma_get_A);
+                    athread_dma_iget_stride(local_B_dma + double_buffer_DMA * local_B_size, 
+                                            next_B + next_B_offset, 
+                                            sizeof(float) * local_B_size, 
+                                            sizeof(float) * blk_N/8, 
+                                            sizeof(float) * B_step,
+                                            &dma_get_B);//这个get要护
+                }
+                
+                double_buffer_A = 0;
+                double_buffer_B = 0;
+                athread_ssync_array();
+                if(cid == 0){
+                    athread_rma_row_ibcast(local_A + double_buffer_A * local_A_size,
+                                            local_A_dma + (1 - double_buffer_DMA) * local_A_size,
+                                            sizeof(float) * local_A_size,
+                                            &rma_local_A,
+                                            &rma_A[cid]);
+                }
+                if(rid == 0){
+                    athread_rma_col_ibcast(local_B + double_buffer_B * local_B_size,
+                                            local_B_dma + (1 - double_buffer_DMA) * local_B_size,
+                                            sizeof(float) * local_B_size,
+                                            &rma_local_B,
+                                            &rma_B[rid]);
+                }
+
+                for(int c_R = 0; c_R < 8; c_R++){
+
+                    athread_rma_wait_value(&rma_A[c_R], 1);
+                    athread_rma_wait_value(&rma_B[c_R], 1);
+
+                    athread_ssync_array();//here must synchronization
+
+                    double_buffer_A = 1 - double_buffer_A;
+                    double_buffer_B = 1 - double_buffer_B;
+                    rma_A[c_R] = 0;
+                    rma_B[c_R] = 0;
+
+                    if(cid == c_R + 1){
+                        athread_rma_row_ibcast(local_A + double_buffer_A * local_A_size, 
+                                                local_A_dma + (1 - double_buffer_DMA) * local_A_size,
+                                                sizeof(float) * local_A_size,
+                                                &rma_local_A,
+                                                &rma_A[c_R+1]);
+                    }
+                    if(rid == c_R + 1){
+                        athread_rma_col_ibcast(local_B + double_buffer_B * local_B_size,
+                                                local_B_dma + (1 - double_buffer_DMA) * local_B_size,
+                                                sizeof(float) * local_B_size,
+                                                &rma_local_B,
+                                                &rma_B[c_R+1]);
+                    }
+
+                    for(int m = 0; m < Md; m++){
+                        for(int n = 0; n < Nd; n++){
+                            for(int k = 0; k < Kd; k++){
+                                local_C_dma[m * Nd + n] += 
+                                local_A[k * Md + m + (1 - double_buffer_A) * local_A_size] *
+                                local_B[k * Nd + n + (1 - double_buffer_B) * local_B_size];
+                            }
+                        }
+                    }
+                }
+                if(c_M * num_N * num_K + c_N * num_K + c_K + 1 < num_M * num_N * num_K){
+                    athread_dma_wait_value(&dma_get_A, 1);
+                    dma_get_A = 0;
+                    rma_local_A = 0;
+                    athread_dma_wait_value(&dma_get_B, 1);
+                    dma_get_B = 0;
+                    rma_local_B = 0;
+                    double_buffer_DMA = 1 - double_buffer_DMA;
+                }
+            }
+            if(curr_blk_M == blk_M && curr_blk_N == blk_N){
+                curr_C = start_C;
+                curr_N = N;
+                C_step = N - blk_N/8;
+            }
+            /* if(c_M == num_M - 1 || c_N == num_N - 1){
+                curr_C = start_Cp;
+                curr_N = Ne;
+                C_step = Ne - blk_N/8;
+            } */
+            else{
+                curr_C = start_Cp;
+                curr_N = Ne;
+                C_step = Ne - blk_N/8;
+            }
+            athread_dma_put_stride(curr_C + c_M * blk_M * curr_N + c_N * blk_N,
+                                    local_C_dma,
+                                    sizeof(float) * local_C_size,
+                                    sizeof(float) * blk_N/8,
+                                    sizeof(float) * C_step);
+        }
+    }
+    athread_ssync_array();
+    ldm_free(local_A, sizeof(float) * 2 * blk_M * blk_K / 64);
+    ldm_free(local_B, sizeof(float) * 2 * blk_K * blk_N / 64);
+    ldm_free(local_C, sizeof(double) * blk_M * blk_N / 64);
+    ldm_free(local_A_dma, sizeof(float) * 2 * blk_M * blk_K / 64);
+    ldm_free(local_B_dma, sizeof(float) * 2 * blk_K * blk_N / 64);
+    ldm_free(local_C_dma, sizeof(float) * blk_M * blk_N / 64);
+}
+
+
+void sw_slave_gemm_rrr_quad_cgn(const int CGN_id,
+                                const float* A, const float* Ap,
+                                const float* B, const float* Bp,
+                                const float* C, const float* Cp,
+                                const int M, const int Ms, const int Me, const int blk_M,
+                                const int N, const int Ns, const int Ne, const int blk_N,
+                                const int K, const int Ks, const int Ke, const int blk_K){
     if(CRTS_cgn != CGN_id){
         return;
     }
@@ -1024,17 +1305,323 @@ void sw_slave_gemm_rrr_cgn(const int CGN_id,
     const int cid = CRTS_tid % 8;
     const int rid = CRTS_tid / 8;
 
-    const size_t num_M = (M + blk_M - 1) / blk_M;
-    const size_t num_N = (N + blk_N - 1) / blk_N;
-    const size_t num_K = (K + blk_K - 1) / blk_K;
+    const int num_M = (M + blk_M - 1) / blk_M;
+    const int num_N = (N + blk_N - 1) / blk_N;
+    const int num_K = (K + blk_K - 1) / blk_K;
 
-    const size_t rem_blk_M = num_M * blk_M - M == 0 ? blk_M : M - (num_M-1) * blk_M;
-    const size_t rem_blk_N = num_N * blk_N - N == 0 ? blk_N : N - (num_N-1) * blk_N;
-    const size_t rem_blk_K = num_K * blk_K - K == 0 ? blk_K : K - (num_K-1) * blk_K;
+    const int rem_blk_M = num_M * blk_M - M == 0 ? blk_M : M - (num_M-1) * blk_M;
+    const int rem_blk_N = num_N * blk_N - N == 0 ? blk_N : N - (num_N-1) * blk_N;
+    const int rem_blk_K = num_K * blk_K - K == 0 ? blk_K : K - (num_K-1) * blk_K;
 
-    const size_t local_A_size = blk_M * blk_K / 64;
-    const size_t local_B_size = blk_K * blk_N / 64;
-    const size_t local_C_size = blk_M * blk_N / 64;
+    const int local_A_size = blk_M * blk_K / 64;
+    const int local_B_size = blk_K * blk_N / 64;
+    const int local_C_size = blk_M * blk_N / 64;
+
+    float* local_A = (float*)ldm_malloc(sizeof(float) * 2 * blk_M * blk_K / 64);
+    float* local_B = (float*)ldm_malloc(sizeof(float) * 2 * blk_K * blk_N / 64);
+    double* local_C = (double*)ldm_malloc(sizeof(double) * blk_M * blk_N / 64);
+
+    float* local_A_dma = (float*)ldm_malloc(sizeof(float) * 2 * blk_M * blk_K / 64);
+    float* local_B_dma = (float*)ldm_malloc(sizeof(float) * 2 * blk_K * blk_N / 64);
+    float* local_C_dma = (float*)ldm_malloc(sizeof(float) * blk_M * blk_N / 64);
+
+    const float* start_A = A + rid * blk_M/8 * K + cid * blk_K/8;
+    const float* start_B = B + rid * blk_K/8 * N + cid * blk_N/8;
+    const float* start_C = C + rid * blk_M/8 * N + cid * blk_N/8;
+
+    const float* start_Ap = Ap + rid * blk_M/8 * Ke + cid * blk_K/8;
+    const float* start_Bp = Bp + rid * blk_K/8 * Ne + cid * blk_N/8;
+    const float* start_Cp = Cp + rid * blk_M/8 * Ne + cid * blk_N/8;
+
+    float* next_A = A;
+    float* next_B = B;
+    float* next_C = C;
+    float* curr_C = C;
+
+    int A_step = K - blk_K/8;
+    int B_step = N - blk_N/8;
+    int C_step = N - blk_N/8;
+
+    int curr_M = M;
+    int curr_N = N;
+    int curr_K = K;
+
+    int curr_blk_M = blk_M;
+    int curr_blk_N = blk_N;
+    int curr_blk_K = blk_K;
+
+    int next_A_offset = 0;
+    int next_B_offset = 0;
+    int next_C_offset = 0;
+
+    int next_blk_M = blk_M;
+    int next_blk_N = blk_N;
+    int next_blk_K = blk_K;
+
+    volatile athread_rply_t dma_get_A = 0, dma_get_B = 0, dma_put_C = 0;
+    volatile athread_rply_t rma_local_A = 0, rma_local_B = 0;
+    volatile athread_rply_t rma_A[8] = {0,0,0,0,0,0,0,0}, rma_B[8] = {0,0,0,0,0,0,0,0};
+
+    volatile int double_buffer_A = 0, double_buffer_B = 0; //for rma
+    volatile int double_buffer_DMA = 0;
+
+    athread_dma_iget_stride(local_A_dma + (1 - double_buffer_DMA) * local_A_size, 
+                            start_A, 
+                            sizeof(float) * local_A_size, 
+                            sizeof(float) * blk_K/8, 
+                            sizeof(float) * A_step,
+                            &dma_get_A);
+    athread_dma_iget_stride(local_B_dma + (1 - double_buffer_DMA) * local_B_size, 
+                            start_B, 
+                            sizeof(float) * local_B_size, 
+                            sizeof(float) * blk_N/8, 
+                            sizeof(float) * B_step,
+                            &dma_get_B);
+
+    athread_dma_wait_value(&dma_get_A, 1);
+    athread_dma_wait_value(&dma_get_B, 1);
+
+    dma_get_A = 0;
+    dma_get_B = 0;
+
+
+
+    for(int c_M = 0; c_M < num_M; c_M++){
+        curr_blk_M = c_M < num_M - 1 ? blk_M : rem_blk_M;
+        for(int c_N = 0; c_N < num_N; c_N++){
+        curr_blk_N = c_N < num_N - 1 ? blk_N : rem_blk_N;
+            for(int i = 0; i < local_C_size; i++){
+                local_C[i] = 0;
+            }
+            for(int i = 0; i < local_C_size; i++){
+                local_C_dma[i] = 0;
+            }
+            for(int c_K = 0; c_K < num_K; c_K++){
+                curr_blk_K = c_K < num_K - 1 ? blk_K : rem_blk_K;
+                if(c_M * num_N * num_K + c_N * num_K + c_K + 1 < num_M * num_N * num_K){
+                    next_blk_M = blk_M;
+                    next_blk_N = blk_N;
+                    next_blk_K = blk_K;
+                    if(c_K == num_K - 2){
+                        next_blk_K = rem_blk_K;
+                    }
+                    if(c_K == num_K - 1){
+                        next_blk_K = blk_K;
+                        if(c_N == num_N - 2){
+                            next_blk_N = rem_blk_N;
+                        }
+                        if(c_N == num_N - 1){
+                            next_blk_N = blk_N;
+                            if(c_M == num_M - 2){
+                                next_blk_M = rem_blk_M;
+                            }
+                        }
+                    }//here's bugs
+                    if(c_M == num_M - 1){
+                        next_blk_M = rem_blk_M;
+                    }
+                    //There must be more conditions
+                    if(c_N == num_N - 1 && c_K != num_K - 1){//not the last c_K
+                        next_blk_N = rem_blk_N;
+                    }
+                    //All conditions have been checked
+                    if(next_blk_K != blk_K || next_blk_M != blk_M){
+                        next_A = start_Ap;
+                        curr_K = Ke;
+                        A_step = Ke - blk_K/8;
+                    }
+                    else{
+                        next_A = start_A;
+                        curr_K = K;
+                        A_step = K - blk_K/8;
+                    }
+                    if(next_blk_K != blk_K || next_blk_N != blk_N){
+                        next_B = start_Bp;
+                        curr_N = Ne;
+                        B_step = Ne - blk_N/8;
+                    }
+                    else{
+                        next_B = start_B;
+                        curr_N = N;
+                        B_step = N - blk_N/8;
+                    }
+                    if(c_K == num_K - 1){
+                        if(c_N == num_N - 1){
+                            next_A_offset = (c_M + 1) * blk_M * curr_K;
+                            next_B_offset = 0;
+                        }
+                        else{
+                            next_A_offset = c_M * blk_M * curr_K;
+                            next_B_offset = (c_N + 1) * blk_N;
+                        }
+                    }
+                    else{
+                        next_A_offset = c_M * blk_M * curr_K + (c_K + 1) * blk_K;
+                        next_B_offset = (c_K + 1) * blk_K * curr_N + c_N * blk_N;
+                    }
+                    athread_dma_iget_stride(local_A_dma + double_buffer_DMA * local_A_size, 
+                                        next_A + next_A_offset, 
+                                        sizeof(float) * local_A_size, 
+                                        sizeof(float) * blk_K/8, 
+                                        sizeof(float) * A_step,
+                                        &dma_get_A);
+                    athread_dma_iget_stride(local_B_dma + double_buffer_DMA * local_B_size, 
+                                        next_B + next_B_offset, 
+                                        sizeof(float) * local_B_size, 
+                                        sizeof(float) * blk_N/8, 
+                                        sizeof(float) * B_step,
+                                        &dma_get_B);//这个get要护
+                }
+                double_buffer_A = 0;
+                double_buffer_B = 0;
+                //athread_ssync_array();
+                if(cid == 0){
+                    athread_rma_row_ibcast(local_A + double_buffer_A * local_A_size, 
+                                            local_A_dma + (1 - double_buffer_DMA) * local_A_size,
+                                            sizeof(float) * local_A_size,
+                                            &rma_local_A,
+                                            &rma_A[cid]);
+                }
+                if(rid == 0){
+                    athread_rma_col_ibcast(local_B + double_buffer_B * local_B_size,
+                                            local_B_dma + (1 - double_buffer_DMA) * local_B_size,
+                                            sizeof(float) * local_B_size,
+                                            &rma_local_B,
+                                            &rma_B[rid]);
+                }
+
+                for(int c_R = 0; c_R < 8; c_R++){
+
+
+
+                    athread_rma_wait_value(&rma_A[c_R], 1);
+                    athread_rma_wait_value(&rma_B[c_R], 1);
+
+                    double_buffer_A = 1 - double_buffer_A;
+                    double_buffer_B = 1 - double_buffer_B;
+                    rma_A[c_R] = 0;
+                    rma_B[c_R] = 0;
+
+                    if(cid == c_R + 1){
+                        athread_rma_row_ibcast(local_A + double_buffer_A * local_A_size, 
+                                                local_A_dma + (1 - double_buffer_DMA) * local_A_size,
+                                                sizeof(float) * local_A_size,
+                                                &rma_local_A,
+                                                &rma_A[c_R+1]);
+                    }
+                    if(rid == c_R + 1){
+                        athread_rma_col_ibcast(local_B + double_buffer_B * local_B_size,
+                                                local_B_dma + (1 - double_buffer_DMA) * local_B_size,
+                                                sizeof(float) * local_B_size,
+                                                &rma_local_B,
+                                                &rma_B[c_R+1]);
+                    }
+
+                    /* for(int m = 0; m < (blk_M/8); m++){
+                        for(int n = 0; n < (blk_N/8); n++){
+                            for(int k = 0; k < (blk_K/8); k++){
+                                local_C_dma[m * (blk_N/8) + n] += 
+                                local_A[m * (blk_K/8) + k + (1 - double_buffer_A) * local_A_size] *
+                                local_B[k * (blk_N/8) + n + (1 - double_buffer_B) * local_B_size];
+                            }
+                        }
+                    } */
+
+
+                    //sgemm_8_8_8(A, B, C, K, N);
+
+                    const int Md = (blk_M/8);
+                    const int Nd = (blk_N/8);
+                    const int Kd = (blk_K/8);
+                    float* comp_A = local_A + (1 - double_buffer_A) * local_A_size;
+                    float* comp_B = local_B + (1 - double_buffer_B) * local_B_size;
+                    double* comp_C = local_C;
+
+                    for(int m = 0; m < Md; m += 8){
+                        for(int n = 0; n < Nd; n += 8){
+                            for(int k = 0; k < Kd; k += 8){
+                                sgemm_8_8_8(comp_A + m * Kd + k, 
+                                            comp_B + k * Nd + n, 
+                                            comp_C + m * Nd + n, 
+                                            Kd, Nd);
+                            }
+                        }
+                    }
+
+                    athread_ssync_array();//here must synchronization
+                }
+                if(c_M * num_N * num_K + c_N * num_K + c_K + 1 < num_M * num_N * num_K){
+                    athread_dma_wait_value(&dma_get_A, 1);
+                    dma_get_A = 0;
+                    rma_local_A = 0;
+                    athread_dma_wait_value(&dma_get_B, 1);
+                    dma_get_B = 0;
+                    rma_local_B = 0;
+                    double_buffer_DMA = 1 - double_buffer_DMA;
+                }
+            }
+            if(curr_blk_M == blk_M && curr_blk_N == blk_N){
+                curr_C = start_C;
+                curr_N = N;
+                C_step = N - blk_N/8;
+            }
+            /* if(c_M == num_M - 1 || c_N == num_N - 1){
+                curr_C = start_Cp;
+                curr_N = Ne;
+                C_step = Ne - blk_N/8;
+            } */
+            else{
+                curr_C = start_Cp;
+                curr_N = Ne;
+                C_step = Ne - blk_N/8;
+            }
+
+            for(int m = 0; m < (blk_M/8); m++){
+                for(int n = 0; n < (blk_N/8); n++){
+                    local_C_dma[m * (blk_N/8) + n] -= local_C[m * (blk_N/8) + n];
+                }
+            }
+            athread_dma_put_stride(curr_C + c_M * blk_M * curr_N + c_N * blk_N,
+                                    local_C_dma,
+                                    sizeof(float) * local_C_size,
+                                    sizeof(float) * blk_N/8,
+                                    sizeof(float) * C_step);
+        }
+    }
+    athread_ssync_array();
+    ldm_free(local_A, sizeof(float) * 2 * blk_M * blk_K / 64);
+    ldm_free(local_B, sizeof(float) * 2 * blk_K * blk_N / 64);
+    ldm_free(local_C, sizeof(double) * blk_M * blk_N / 64);
+    ldm_free(local_A_dma, sizeof(float) * 2 * blk_M * blk_K / 64);
+    ldm_free(local_B_dma, sizeof(float) * 2 * blk_K * blk_N / 64);
+    ldm_free(local_C_dma, sizeof(float) * blk_M * blk_N / 64);
+}
+
+void sw_slave_gemm_rrr_cgn(const int CGN_id,
+                           const float* A, const float* Ap,
+                           const float* B, const float* Bp,
+                           const float* C, const float* Cp,
+                           const int M, const int Ms, const int Me, const int blk_M,
+                           const int N, const int Ns, const int Ne, const int blk_N,
+                           const int K, const int Ks, const int Ke, const int blk_K){
+    if(CRTS_cgn != CGN_id){
+        return;
+    }
+
+    const int cid = CRTS_tid % 8;
+    const int rid = CRTS_tid / 8;
+
+    const int num_M = (M + blk_M - 1) / blk_M;
+    const int num_N = (N + blk_N - 1) / blk_N;
+    const int num_K = (K + blk_K - 1) / blk_K;
+
+    const int rem_blk_M = num_M * blk_M - M == 0 ? blk_M : M - (num_M-1) * blk_M;
+    const int rem_blk_N = num_N * blk_N - N == 0 ? blk_N : N - (num_N-1) * blk_N;
+    const int rem_blk_K = num_K * blk_K - K == 0 ? blk_K : K - (num_K-1) * blk_K;
+
+    const int local_A_size = blk_M * blk_K / 64;
+    const int local_B_size = blk_K * blk_N / 64;
+    const int local_C_size = blk_M * blk_N / 64;
 
     float* local_A = (float*)ldm_malloc(sizeof(float) * 2 * blk_M * blk_K / 64);
     float* local_B = (float*)ldm_malloc(sizeof(float) * 2 * blk_K * blk_N / 64);
@@ -1057,25 +1644,25 @@ void sw_slave_gemm_rrr_cgn(const int CGN_id,
     float* next_C = C;
     float* curr_C = C;
 
-    size_t A_step = K - blk_K/8;
-    size_t B_step = N - blk_N/8;
-    size_t C_step = N - blk_N/8;
+    int A_step = K - blk_K/8;
+    int B_step = N - blk_N/8;
+    int C_step = N - blk_N/8;
 
-    size_t curr_M = M;
-    size_t curr_N = N;
-    size_t curr_K = K;
+    int curr_M = M;
+    int curr_N = N;
+    int curr_K = K;
 
-    size_t curr_blk_M = blk_M;
-    size_t curr_blk_N = blk_N;
-    size_t curr_blk_K = blk_K;
+    int curr_blk_M = blk_M;
+    int curr_blk_N = blk_N;
+    int curr_blk_K = blk_K;
 
-    size_t next_A_offset = 0;
-    size_t next_B_offset = 0;
-    size_t next_C_offset = 0;
+    int next_A_offset = 0;
+    int next_B_offset = 0;
+    int next_C_offset = 0;
 
-    size_t next_blk_M = blk_M;
-    size_t next_blk_N = blk_N;
-    size_t next_blk_K = blk_K;
+    int next_blk_M = blk_M;
+    int next_blk_N = blk_N;
+    int next_blk_K = blk_K;
 
     volatile athread_rply_t dma_get_A = 0, dma_get_B = 0, dma_put_C = 0;
     volatile athread_rply_t rma_local_A = 0, rma_local_B = 0;
@@ -1322,26 +1909,26 @@ void sw_slave_gemm_rrr4_cgn(const int CGN_id,
                             const float* A, const float* Ap,
                             const float* B, const float* Bp,
                             const float* C, const float* Cp,
-                            const size_t M, const size_t Ms, const size_t Me, const size_t blk_M,
-                            const size_t N, const size_t Ns, const size_t Ne, const size_t blk_N,
-                            const size_t K, const size_t Ks, const size_t Ke, const size_t blk_K){
+                            const int M, const int Ms, const int Me, const int blk_M,
+                            const int N, const int Ns, const int Ne, const int blk_N,
+                            const int K, const int Ks, const int Ke, const int blk_K){
     if(CRTS_cgn != CGN_id){
         return;
     }
     const int cid = CRTS_tid % 8;
     const int rid = CRTS_tid / 8;
 
-    const size_t num_M = (M + blk_M - 1) / blk_M;
-    const size_t num_N = (N + blk_N - 1) / blk_N;
-    const size_t num_K = (K + blk_K - 1) / blk_K;
+    const int num_M = (M + blk_M - 1) / blk_M;
+    const int num_N = (N + blk_N - 1) / blk_N;
+    const int num_K = (K + blk_K - 1) / blk_K;
 
-    const size_t rem_blk_M = num_M * blk_M - M == 0 ? blk_M : M - (num_M-1) * blk_M;
-    const size_t rem_blk_N = num_N * blk_N - N == 0 ? blk_N : N - (num_N-1) * blk_N;
-    const size_t rem_blk_K = num_K * blk_K - K == 0 ? blk_K : K - (num_K-1) * blk_K;
+    const int rem_blk_M = num_M * blk_M - M == 0 ? blk_M : M - (num_M-1) * blk_M;
+    const int rem_blk_N = num_N * blk_N - N == 0 ? blk_N : N - (num_N-1) * blk_N;
+    const int rem_blk_K = num_K * blk_K - K == 0 ? blk_K : K - (num_K-1) * blk_K;
 
-    const size_t local_A_size = blk_M * blk_K / 64;
-    const size_t local_B_size = blk_K * blk_N / 64;
-    const size_t local_C_size = blk_M * blk_N / 64;
+    const int local_A_size = blk_M * blk_K / 64;
+    const int local_B_size = blk_K * blk_N / 64;
+    const int local_C_size = blk_M * blk_N / 64;
 
     float* local_A = (float*)ldm_malloc(sizeof(float) * 4 * blk_M * blk_K / 64);
     float* local_B = (float*)ldm_malloc(sizeof(float) * 4 * blk_K * blk_N / 64);
@@ -1364,25 +1951,25 @@ void sw_slave_gemm_rrr4_cgn(const int CGN_id,
     float* next_C = C;
     float* curr_C = C;
 
-    size_t A_step = K - blk_K/8;
-    size_t B_step = N - blk_N/8;
-    size_t C_step = N - blk_N/8;
+    int A_step = K - blk_K/8;
+    int B_step = N - blk_N/8;
+    int C_step = N - blk_N/8;
 
-    size_t curr_M = M;
-    size_t curr_N = N;
-    size_t curr_K = K;
+    int curr_M = M;
+    int curr_N = N;
+    int curr_K = K;
 
-    size_t curr_blk_M = blk_M;
-    size_t curr_blk_N = blk_N;
-    size_t curr_blk_K = blk_K;
+    int curr_blk_M = blk_M;
+    int curr_blk_N = blk_N;
+    int curr_blk_K = blk_K;
 
-    size_t next_A_offset = 0;
-    size_t next_B_offset = 0;
-    size_t next_C_offset = 0;
+    int next_A_offset = 0;
+    int next_B_offset = 0;
+    int next_C_offset = 0;
 
-    size_t next_blk_M = blk_M;
-    size_t next_blk_N = blk_N;
-    size_t next_blk_K = blk_K;
+    int next_blk_M = blk_M;
+    int next_blk_N = blk_N;
+    int next_blk_K = blk_K;
 
     volatile athread_rply_t dma_get_A = 0, dma_get_B = 0, dma_put_C = 0;
     volatile athread_rply_t rma_local_A = 0, rma_local_B = 0;
@@ -1665,22 +2252,22 @@ void sw_slave_gemm_rrr4_cgn(const int CGN_id,
 inline void sw_slave_trans_f32_cgn(const int CGN_id,
                                     const float* C, const float* Cp,
                                     const float* T, const float* Tp,
-                                    const size_t M, const size_t Ms, const size_t Me, const size_t blk_M,
-                                    const size_t N, const size_t Ns, const size_t Ne, const size_t blk_N){
+                                    const int M, const int Ms, const int Me, const int blk_M,
+                                    const int N, const int Ns, const int Ne, const int blk_N){
     if(CRTS_cgn != CGN_id){
         return;
     }
     const int cid = CRTS_tid % 8;
     const int rid = CRTS_tid / 8;
 
-    const size_t num_M = (M + blk_M - 1) / blk_M;
-    const size_t num_N = (N + blk_N - 1) / blk_N;
+    const int num_M = (M + blk_M - 1) / blk_M;
+    const int num_N = (N + blk_N - 1) / blk_N;
 
-    const size_t rem_blk_M = num_M * blk_M - M == 0 ? blk_M : M - (num_M-1) * blk_M;
-    const size_t rem_blk_N = num_N * blk_N - N == 0 ? blk_N : N - (num_N-1) * blk_N;
+    const int rem_blk_M = num_M * blk_M - M == 0 ? blk_M : M - (num_M-1) * blk_M;
+    const int rem_blk_N = num_N * blk_N - N == 0 ? blk_N : N - (num_N-1) * blk_N;
 
-    const size_t local_C_size = blk_M * blk_N / 64;
-    const size_t local_T_size = blk_M * blk_N / 64;
+    const int local_C_size = blk_M * blk_N / 64;
+    const int local_T_size = blk_M * blk_N / 64;
 
     float* local_C = (float*)ldm_malloc(sizeof(float) * blk_M * blk_N / 64);
     float* local_T = (float*)ldm_malloc(sizeof(float) * blk_M * blk_N / 64);
@@ -1694,17 +2281,17 @@ inline void sw_slave_trans_f32_cgn(const int CGN_id,
     float* curr_C = start_C;
     float* curr_T = start_T;
 
-    size_t C_step = N - blk_N/8;
-    size_t T_step = M - blk_M/8;
+    int C_step = N - blk_N/8;
+    int T_step = M - blk_M/8;
 
-    size_t curr_M = M;
-    size_t curr_N = N;
+    int curr_M = M;
+    int curr_N = N;
 
-    size_t curr_blk_M = blk_M;
-    size_t curr_blk_N = blk_N;
+    int curr_blk_M = blk_M;
+    int curr_blk_N = blk_N;
 
-    size_t next_blk_M = blk_M;
-    size_t next_blk_N = blk_N;
+    int next_blk_M = blk_M;
+    int next_blk_N = blk_N;
 
     for(int c_M = 0; c_M < num_M; c_M++){
         curr_blk_M = c_M < num_M - 1 ? blk_M : rem_blk_M;
@@ -1757,19 +2344,19 @@ void sw_slave_gemm_crr_f32(sw_gemmPara *_){
     const float *src_Bp = para->Bp;
     const float *src_C = para->C;
     const float *src_Cp = para->Cp;
-    size_t M = para->M;
-    size_t Ms = para->Ms;
-    size_t Me = para->Me;
-    size_t N = para->N;
-    size_t Ns = para->Ns;
-    size_t Ne = para->Ne;
-    size_t K = para->K;
-    size_t Ks = para->Ks;
-    size_t Ke = para->Ke;
-    size_t blk_M = para->blk_M;
-    size_t blk_N = para->blk_N;
-    size_t blk_K = para->blk_K;
-    size_t counts = para->counts;
+    int M = para->M;
+    int Ms = para->Ms;
+    int Me = para->Me;
+    int N = para->N;
+    int Ns = para->Ns;
+    int Ne = para->Ne;
+    int K = para->K;
+    int Ks = para->Ks;
+    int Ke = para->Ke;
+    int blk_M = para->blk_M;
+    int blk_N = para->blk_N;
+    int blk_K = para->blk_K;
+    int counts = para->counts;
     sw_slave_gemm_copy_border_f32_cgn(0, src_A, src_Ap, M, Ms, Me, blk_M, K, Ks, Ke ,blk_K);
     sw_slave_gemm_copy_border_f32_cgn(1, src_B, src_Bp, K, Ks, Ke, blk_K, N, Ns, Ne ,blk_N);
     athread_ssync_node();
@@ -1791,19 +2378,19 @@ void sw_slave_gemm_rrr_f32(sw_gemmPara *_){
     const float *src_Bp = para->Bp;
     const float *src_C = para->C;
     const float *src_Cp = para->Cp;
-    size_t M = para->M;
-    size_t Ms = para->Ms;
-    size_t Me = para->Me;
-    size_t N = para->N;
-    size_t Ns = para->Ns;
-    size_t Ne = para->Ne;
-    size_t K = para->K;
-    size_t Ks = para->Ks;
-    size_t Ke = para->Ke;
-    size_t blk_M = para->blk_M;
-    size_t blk_N = para->blk_N;
-    size_t blk_K = para->blk_K;
-    size_t counts = para->counts;
+    int M = para->M;
+    int Ms = para->Ms;
+    int Me = para->Me;
+    int N = para->N;
+    int Ns = para->Ns;
+    int Ne = para->Ne;
+    int K = para->K;
+    int Ks = para->Ks;
+    int Ke = para->Ke;
+    int blk_M = para->blk_M;
+    int blk_N = para->blk_N;
+    int blk_K = para->blk_K;
+    int counts = para->counts;
     //sw_slave_gemm_copy_border_f32_cgn(0, src_A, src_Ap, M, Ms, Me, blk_M, K, Ks, Ke ,blk_K);
     //sw_slave_gemm_copy_border_f32_cgn(1, src_B, src_Bp, K, Ks, Ke, blk_K, N, Ns, Ne ,blk_N);
     sw_slave_gemm_copy_all(0,383,src_A, src_Ap, M, Me, K, Ke);
@@ -1831,19 +2418,19 @@ void sw_slave_gemm_crr_sli_cgn_f32(sw_gemmPara *_){
     const float *A_cgn;
     const float *B_cgn;
     const float *C_cgn;
-    const size_t M = para->M;
-    const size_t Ms = para->Ms;
-    const size_t Me = para->Me;
-    const size_t N = para->N;
-    const size_t Ns = para->Ns;
-    const size_t Ne = para->Ne;
-    const size_t K = para->K;
-    const size_t Ks = para->Ks;
-    const size_t Ke = para->Ke;
-    const size_t blk_M = para->blk_M;
-    const size_t blk_N = para->blk_N;
-    const size_t blk_K = para->blk_K;
-    const size_t sli_C = para->sli_C;
+    const int M = para->M;
+    const int Ms = para->Ms;
+    const int Me = para->Me;
+    const int N = para->N;
+    const int Ns = para->Ns;
+    const int Ne = para->Ne;
+    const int K = para->K;
+    const int Ks = para->Ks;
+    const int Ke = para->Ke;
+    const int blk_M = para->blk_M;
+    const int blk_N = para->blk_N;
+    const int blk_K = para->blk_K;
+    const int sli_C = para->sli_C;
     if(M == Me && K == Ke){
         A_cgn = para->A_sli[CRTS_cgn];
     }
@@ -1864,7 +2451,7 @@ void sw_slave_gemm_crr_sli_cgn_f32(sw_gemmPara *_){
     else{
         C_cgn = para->Cp_sli[CRTS_cgn];
     }
-    const size_t K_cgn = para->sli_K[CRTS_cgn];
+    const int K_cgn = para->sli_K[CRTS_cgn];
     athread_ssync_node();
 #ifdef _SWOPS_DEBUG
     if(CRTS_tid == 0){
@@ -1873,13 +2460,13 @@ void sw_slave_gemm_crr_sli_cgn_f32(sw_gemmPara *_){
     }
 #endif
     if(K_cgn > 0){
-        sw_slave_gemm_crr_cgn(CRTS_cgn,
-                            A_cgn, A_cgn, 
-                            B_cgn, B_cgn, 
-                            C_cgn, C_cgn,
-                            Me, Me, Me, blk_M,
-                            Ne, Ne, Ne, blk_N,
-                            K_cgn, K_cgn, K_cgn, blk_K);
+        sw_slave_gemm_crr_quad_cgn(CRTS_cgn,
+                                    A_cgn, A_cgn, 
+                                    B_cgn, B_cgn, 
+                                    C_cgn, C_cgn,
+                                    Me, Me, Me, blk_M,
+                                    Ne, Ne, Ne, blk_N,
+                                    K_cgn, K_cgn, K_cgn, blk_K);
     }
     athread_ssync_node();
     sw_slave_gemm_copy_all_back_add(0, 383, sli_C, C, Cp, M, Me, N, Ne);
@@ -1897,18 +2484,18 @@ void sw_slave_gemm_rrr_sli_cgn_f32(sw_gemmPara *_){
     const float *A_cgn;
     const float *B_cgn;
     const float *C_cgn;
-    const size_t M = para->M;
-    const size_t Ms = para->Ms;
-    const size_t Me = para->Me;
-    const size_t N = para->N;
-    const size_t Ns = para->Ns;
-    const size_t Ne = para->Ne;
-    const size_t K = para->K;
-    const size_t Ks = para->Ks;
-    const size_t Ke = para->Ke;
-    const size_t blk_M = para->blk_M;
-    const size_t blk_N = para->blk_N;
-    const size_t blk_K = para->blk_K;
+    const int M = para->M;
+    const int Ms = para->Ms;
+    const int Me = para->Me;
+    const int N = para->N;
+    const int Ns = para->Ns;
+    const int Ne = para->Ne;
+    const int K = para->K;
+    const int Ks = para->Ks;
+    const int Ke = para->Ke;
+    const int blk_M = para->blk_M;
+    const int blk_N = para->blk_N;
+    const int blk_K = para->blk_K;
     if(M == Me && K == Ke){
         A_cgn = para->A_sli[CRTS_cgn];
     }
@@ -1937,13 +2524,13 @@ void sw_slave_gemm_rrr_sli_cgn_f32(sw_gemmPara *_){
     }
 #endif
     if(M_cgn > 0){
-        sw_slave_gemm_rrr_cgn(CRTS_cgn,
-                            A_cgn, A_cgn, 
-                            B_cgn, B_cgn, 
-                            C_cgn, C_cgn,
-                            M_cgn, M_cgn, M_cgn, blk_M,
-                            Ne, Ne, Ne, blk_N,
-                            Ke, Ke, Ke, blk_K);
+        sw_slave_gemm_rrr_quad_cgn(CRTS_cgn,
+                                    A_cgn, A_cgn, 
+                                    B_cgn, B_cgn, 
+                                    C_cgn, C_cgn,
+                                    M_cgn, M_cgn, M_cgn, blk_M,
+                                    Ne, Ne, Ne, blk_N,
+                                    Ke, Ke, Ke, blk_K);
     }
     athread_ssync_node();
     if(M != Me || N != Ne){
@@ -1960,19 +2547,19 @@ void sw_slave_gemm_rrr4_f32(sw_gemmPara *_){
     const float *src_Bp = para->Bp;
     const float *src_C = para->C;
     const float *src_Cp = para->Cp;
-    size_t M = para->M;
-    size_t Ms = para->Ms;
-    size_t Me = para->Me;
-    size_t N = para->N;
-    size_t Ns = para->Ns;
-    size_t Ne = para->Ne;
-    size_t K = para->K;
-    size_t Ks = para->Ks;
-    size_t Ke = para->Ke;
-    size_t blk_M = para->blk_M;
-    size_t blk_N = para->blk_N;
-    size_t blk_K = para->blk_K;
-    size_t counts = para->counts;
+    int M = para->M;
+    int Ms = para->Ms;
+    int Me = para->Me;
+    int N = para->N;
+    int Ns = para->Ns;
+    int Ne = para->Ne;
+    int K = para->K;
+    int Ks = para->Ks;
+    int Ke = para->Ke;
+    int blk_M = para->blk_M;
+    int blk_N = para->blk_N;
+    int blk_K = para->blk_K;
+    int counts = para->counts;
     if(((blk_M % 32) != 0) || ((blk_N % 32) != 0) || ((blk_K % 32) != 0)){
         if(_MYID == 0){
             printf("gemm rrr block size error!!!, blk_M %d blk_N %d blk_K %d\n", blk_M, blk_N,blk_K);
@@ -2002,19 +2589,19 @@ void sw_slave_gemm_rcr_cgn_f32(sw_gemmPara *_){
     const float *src_Cp = para->Cp;
     const float *src_T = para->T;
     const float *src_Tp = para->Tp;
-    const size_t slice = para->slice;
-    const size_t M = para->M;
-    const size_t Ms = para->Ms;
-    const size_t Me = para->Me;
-    const size_t N = para->N;
-    const size_t Ns = para->Ns;
-    const size_t Ne = para->Ne;
-    const size_t K = para->K;
-    const size_t Ks = para->Ks;
-    const size_t Ke = para->Ke;
-    const size_t blk_M = para->blk_M;
-    const size_t blk_N = para->blk_N;
-    const size_t blk_K = para->blk_K;
+    const int slice = para->slice;
+    const int M = para->M;
+    const int Ms = para->Ms;
+    const int Me = para->Me;
+    const int N = para->N;
+    const int Ns = para->Ns;
+    const int Ne = para->Ne;
+    const int K = para->K;
+    const int Ks = para->Ks;
+    const int Ke = para->Ke;
+    const int blk_M = para->blk_M;
+    const int blk_N = para->blk_N;
+    const int blk_K = para->blk_K;
     sw_slave_gemm_copy_border_f32_cgn(0, src_B, src_Bp, 
                                         N, Ns, Ne ,blk_N,
                                         K, Ks, Ke, blk_K);
@@ -2046,19 +2633,19 @@ void sw_slave_gemm_rcr_all_cgn_f32(sw_gemmPara *_){
     const float *src_Cp = para->Cp;
     const float *src_T = para->T;
     const float *src_Tp = para->Tp;
-    const size_t slice = para->slice;
-    const size_t M = para->M;
-    const size_t Ms = para->Ms;
-    const size_t Me = para->Me;
-    const size_t N = para->N;
-    const size_t Ns = para->Ns;
-    const size_t Ne = para->Ne;
-    const size_t K = para->K;
-    const size_t Ks = para->Ks;
-    const size_t Ke = para->Ke;
-    const size_t blk_M = para->blk_M;
-    const size_t blk_N = para->blk_N;
-    const size_t blk_K = para->blk_K;
+    const int slice = para->slice;
+    const int M = para->M;
+    const int Ms = para->Ms;
+    const int Me = para->Me;
+    const int N = para->N;
+    const int Ns = para->Ns;
+    const int Ne = para->Ne;
+    const int K = para->K;
+    const int Ks = para->Ks;
+    const int Ke = para->Ke;
+    const int blk_M = para->blk_M;
+    const int blk_N = para->blk_N;
+    const int blk_K = para->blk_K;
     sw_slave_gemm_copy_border_f32_cgn(0, src_B, src_Bp, 
                                         N, Ns, Ne ,blk_N,
                                         K, Ks, Ke, blk_K);
@@ -2096,37 +2683,37 @@ void sw_slave_bmm_rrr(sw_bmmPara *_){
     const float *src_A = para->A;
     const float *src_B = para->B;
     const float *src_C = para->C;
-    size_t M = para->M;
-    size_t N = para->N;
-    size_t K = para->K;
-    size_t blk_M = para->blk_M;
-    size_t blk_N = para->blk_N;
-    size_t blk_K = para->blk_K;
-    size_t counts = para->counts;
+    int M = para->M;
+    int N = para->N;
+    int K = para->K;
+    int blk_M = para->blk_M;
+    int blk_N = para->blk_N;
+    int blk_K = para->blk_K;
+    int counts = para->counts;
     const int local_count = (counts + 383) / 384;
     const int local_start = myid * local_count;
     const int local_end = ((local_start + local_count > counts) ? counts : (local_start + local_count));
     if (local_start >= counts){
         return;
     }
-    const size_t local_A_size = blk_M * blk_K;
-    const size_t local_B_size = blk_K * blk_N;
-    const size_t local_C_size = blk_M * blk_N;
-    const size_t MK_size = M * K;
-    const size_t KN_size = K * N;
-    const size_t MN_size = M * N;
-    const size_t num_M = (M + blk_M - 1) / blk_M;
-    const size_t num_N = (N + blk_N - 1) / blk_N; //这一定能够被整除
-    const size_t num_K = (K + blk_K - 1) / blk_K;
-    const size_t rem_blk_M = num_M * blk_M - M == 0 ? blk_M : M - (num_M-1) * blk_M;
-    const size_t rem_blk_N = num_N * blk_N - N == 0 ? blk_N : N - (num_N-1) * blk_N;
-    const size_t rem_blk_K = num_K * blk_K - K == 0 ? blk_K : K - (num_K-1) * blk_K;
-    size_t curr_blk_M = blk_M;
-    size_t curr_blk_N = blk_N;
-    size_t curr_blk_K = blk_K;
-    size_t next_blk_M = blk_M;
-    size_t next_blk_N = blk_N;
-    size_t next_blk_K = blk_K;
+    const int local_A_size = blk_M * blk_K;
+    const int local_B_size = blk_K * blk_N;
+    const int local_C_size = blk_M * blk_N;
+    const int MK_size = M * K;
+    const int KN_size = K * N;
+    const int MN_size = M * N;
+    const int num_M = (M + blk_M - 1) / blk_M;
+    const int num_N = (N + blk_N - 1) / blk_N; //这一定能够被整除
+    const int num_K = (K + blk_K - 1) / blk_K;
+    const int rem_blk_M = num_M * blk_M - M == 0 ? blk_M : M - (num_M-1) * blk_M;
+    const int rem_blk_N = num_N * blk_N - N == 0 ? blk_N : N - (num_N-1) * blk_N;
+    const int rem_blk_K = num_K * blk_K - K == 0 ? blk_K : K - (num_K-1) * blk_K;
+    int curr_blk_M = blk_M;
+    int curr_blk_N = blk_N;
+    int curr_blk_K = blk_K;
+    int next_blk_M = blk_M;
+    int next_blk_N = blk_N;
+    int next_blk_K = blk_K;
     float *start_A = src_A + MK_size * local_start;
     float *start_B = src_B + KN_size * local_start;
     float *start_C = src_C + MN_size * local_start;
@@ -2291,37 +2878,37 @@ void sw_slave_bmm_rcr(sw_bmmPara *_){
     const float *src_A = para->A;
     const float *src_B = para->B;
     const float *src_C = para->C;
-    size_t M = para->M;
-    size_t N = para->N;
-    size_t K = para->K;
-    size_t blk_M = para->blk_M;
-    size_t blk_N = para->blk_N;
-    size_t blk_K = para->blk_K;
-    size_t counts = para->counts;
+    int M = para->M;
+    int N = para->N;
+    int K = para->K;
+    int blk_M = para->blk_M;
+    int blk_N = para->blk_N;
+    int blk_K = para->blk_K;
+    int counts = para->counts;
     const int local_count = (counts + 383) / 384;
     const int local_start = myid * local_count;
     const int local_end = ((local_start + local_count > counts) ? counts : (local_start + local_count));
     if (local_start >= counts){
         return;
     }
-    const size_t local_A_size = blk_M * blk_K;
-    const size_t local_B_size = blk_K * blk_N;
-    const size_t local_C_size = blk_M * blk_N;
-    const size_t MK_size = M * K;
-    const size_t KN_size = K * N;
-    const size_t MN_size = M * N;
-    const size_t num_M = (M + blk_M - 1) / blk_M;
-    const size_t num_N = (N + blk_N - 1) / blk_N; //这一定能够被整除
-    const size_t num_K = (K + blk_K - 1) / blk_K;
-    const size_t rem_blk_M = num_M * blk_M - M == 0 ? blk_M : M - (num_M-1) * blk_M;
-    const size_t rem_blk_N = num_N * blk_N - N == 0 ? blk_N : N - (num_N-1) * blk_N;
-    const size_t rem_blk_K = num_K * blk_K - K == 0 ? blk_K : K - (num_K-1) * blk_K;
-    size_t curr_blk_M = blk_M;
-    size_t curr_blk_N = blk_N;
-    size_t curr_blk_K = blk_K;
-    size_t next_blk_M = blk_M;
-    size_t next_blk_N = blk_N;
-    size_t next_blk_K = blk_K;
+    const int local_A_size = blk_M * blk_K;
+    const int local_B_size = blk_K * blk_N;
+    const int local_C_size = blk_M * blk_N;
+    const int MK_size = M * K;
+    const int KN_size = K * N;
+    const int MN_size = M * N;
+    const int num_M = (M + blk_M - 1) / blk_M;
+    const int num_N = (N + blk_N - 1) / blk_N; //这一定能够被整除
+    const int num_K = (K + blk_K - 1) / blk_K;
+    const int rem_blk_M = num_M * blk_M - M == 0 ? blk_M : M - (num_M-1) * blk_M;
+    const int rem_blk_N = num_N * blk_N - N == 0 ? blk_N : N - (num_N-1) * blk_N;
+    const int rem_blk_K = num_K * blk_K - K == 0 ? blk_K : K - (num_K-1) * blk_K;
+    int curr_blk_M = blk_M;
+    int curr_blk_N = blk_N;
+    int curr_blk_K = blk_K;
+    int next_blk_M = blk_M;
+    int next_blk_N = blk_N;
+    int next_blk_K = blk_K;
     float *start_A = src_A + MK_size * local_start;
     float *start_B = src_B + KN_size * local_start;
     float *start_C = src_C + MN_size * local_start;
@@ -2486,37 +3073,37 @@ void sw_slave_bmm_crr(sw_bmmPara *_){
     const float *src_A = para->A;
     const float *src_B = para->B;
     const float *src_C = para->C;
-    size_t M = para->M;
-    size_t N = para->N;
-    size_t K = para->K;
-    size_t blk_M = para->blk_M;
-    size_t blk_N = para->blk_N;
-    size_t blk_K = para->blk_K;
-    size_t counts = para->counts;
+    int M = para->M;
+    int N = para->N;
+    int K = para->K;
+    int blk_M = para->blk_M;
+    int blk_N = para->blk_N;
+    int blk_K = para->blk_K;
+    int counts = para->counts;
     const int local_count = (counts + 383) / 384;
     const int local_start = myid * local_count;
     const int local_end = ((local_start + local_count > counts) ? counts : (local_start + local_count));
     if (local_start >= counts){
         return;
     }
-    const size_t local_A_size = blk_M * blk_K;
-    const size_t local_B_size = blk_K * blk_N;
-    const size_t local_C_size = blk_M * blk_N;
-    const size_t MK_size = M * K;
-    const size_t KN_size = K * N;
-    const size_t MN_size = M * N;
-    const size_t num_M = (M + blk_M - 1) / blk_M;
-    const size_t num_N = (N + blk_N - 1) / blk_N; //这一定能够被整除
-    const size_t num_K = (K + blk_K - 1) / blk_K;
-    const size_t rem_blk_M = num_M * blk_M - M == 0 ? blk_M : M - (num_M-1) * blk_M;
-    const size_t rem_blk_N = num_N * blk_N - N == 0 ? blk_N : N - (num_N-1) * blk_N;
-    const size_t rem_blk_K = num_K * blk_K - K == 0 ? blk_K : K - (num_K-1) * blk_K;
-    size_t curr_blk_M = blk_M;
-    size_t curr_blk_N = blk_N;
-    size_t curr_blk_K = blk_K;
-    size_t next_blk_M = blk_M;
-    size_t next_blk_N = blk_N;
-    size_t next_blk_K = blk_K;
+    const int local_A_size = blk_M * blk_K;
+    const int local_B_size = blk_K * blk_N;
+    const int local_C_size = blk_M * blk_N;
+    const int MK_size = M * K;
+    const int KN_size = K * N;
+    const int MN_size = M * N;
+    const int num_M = (M + blk_M - 1) / blk_M;
+    const int num_N = (N + blk_N - 1) / blk_N; //这一定能够被整除
+    const int num_K = (K + blk_K - 1) / blk_K;
+    const int rem_blk_M = num_M * blk_M - M == 0 ? blk_M : M - (num_M-1) * blk_M;
+    const int rem_blk_N = num_N * blk_N - N == 0 ? blk_N : N - (num_N-1) * blk_N;
+    const int rem_blk_K = num_K * blk_K - K == 0 ? blk_K : K - (num_K-1) * blk_K;
+    int curr_blk_M = blk_M;
+    int curr_blk_N = blk_N;
+    int curr_blk_K = blk_K;
+    int next_blk_M = blk_M;
+    int next_blk_N = blk_N;
+    int next_blk_K = blk_K;
     float *start_A = src_A + MK_size * local_start;
     float *start_B = src_B + KN_size * local_start;
     float *start_C = src_C + MN_size * local_start;
@@ -2681,9 +3268,9 @@ void sw_slave_mm_ABT(swptex_mmPara *_){
     const float *A = para->A;
     const float *B = para->B;
     float *C = para->C;
-    size_t M = para->M;
-    size_t N = para->N;
-    size_t K = para->K;
+    int M = para->M;
+    int N = para->N;
+    int K = para->K;
     int i, j, k;
     float temp;
     int M_blk = M / thread_num;
@@ -2712,9 +3299,9 @@ void sw_slave_mm_AB(swptex_mmPara *_)
     const float *A = para->A;
     const float *B = para->B;
     float *C = para->C;
-    size_t M = para->M;
-    size_t N = para->N;
-    size_t K = para->K;
+    int M = para->M;
+    int N = para->N;
+    int K = para->K;
     int i, j, k;
     float temp;
     int M_blk = M / thread_num;
@@ -2743,9 +3330,9 @@ void sw_slave_mm_ATB(swptex_mmPara *_)
     const float *A = para->A;
     const float *B = para->B;
     float *C = para->C;
-    size_t M = para->M;
-    size_t N = para->N;
-    size_t K = para->K;
+    int M = para->M;
+    int N = para->N;
+    int K = para->K;
     int i, j, k;
     float temp;
     int M_blk = M / thread_num;

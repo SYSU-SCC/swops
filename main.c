@@ -7,8 +7,9 @@ int main(int argc, char *argv[]){
 
     //test_copy_all();
 
-    test_gemm_rrr_all();
     //test_gemm_rrr();
+    test_gemm_rrr_all();
+
     //test_gemm_crr();
     test_gemm_crr_all();
     return 0;
