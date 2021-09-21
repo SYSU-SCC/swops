@@ -1086,8 +1086,8 @@ void sw_slave_gemm_rrr_quad_cgn(const int CGN_id,
     volatile athread_rply_t rma_local_A = 0, rma_local_B = 0;
     volatile athread_rply_t rma_A[8] = {0,0,0,0,0,0,0,0}, rma_B[8] = {0,0,0,0,0,0,0,0};
 
-    volatile int double_buffer_A = 0, double_buffer_B = 0; //for rma
-    volatile int double_buffer_DMA = 0;
+    int double_buffer_A = 0, double_buffer_B = 0; //for rma
+    int double_buffer_DMA = 0;
 
     athread_dma_iget_stride(local_A_dma + (1 - double_buffer_DMA) * local_A_size, 
                             start_A, 
@@ -1215,8 +1215,6 @@ void sw_slave_gemm_rrr_quad_cgn(const int CGN_id,
                 }
 
                 for(int c_R = 0; c_R < 8; c_R++){
-
-
 
                     athread_rma_wait_value(&rma_A[c_R], 1);
                     athread_rma_wait_value(&rma_B[c_R], 1);
@@ -2752,6 +2750,8 @@ void sw_slave_bmm_rrr(sw_bmmPara *_){
     const int rem_blk_M = num_M * blk_M - M == 0 ? blk_M : M - (num_M-1) * blk_M;
     const int rem_blk_N = num_N * blk_N - N == 0 ? blk_N : N - (num_N-1) * blk_N;
     const int rem_blk_K = num_K * blk_K - K == 0 ? blk_K : K - (num_K-1) * blk_K;
+
+    //change curr_blk_MNK
     int curr_blk_M = blk_M;
     int curr_blk_N = blk_N;
     int curr_blk_K = blk_K;
@@ -2770,15 +2770,15 @@ void sw_slave_bmm_rrr(sw_bmmPara *_){
     int local_now = local_start;
     athread_dma_iget_stride(local_A + (1 - double_buffer_flag_AB) * local_A_size, 
                             start_A, 
-                            sizeof(float) * blk_M * blk_K, 
-                            sizeof(float) * blk_K, 
-                            sizeof(float) * (K - blk_K),
+                            sizeof(float) * curr_blk_M * curr_blk_K, 
+                            sizeof(float) * curr_blk_K, 
+                            sizeof(float) * (K - curr_blk_K),
                             &reply_get_A);
     athread_dma_iget_stride(local_B + (1 - double_buffer_flag_AB) * local_B_size, 
                             start_B, 
-                            sizeof(float) * blk_K * blk_N, 
-                            sizeof(float) * blk_N, 
-                            sizeof(float) * (N - blk_N),
+                            sizeof(float) * curr_blk_K * curr_blk_N, 
+                            sizeof(float) * curr_blk_N, 
+                            sizeof(float) * (N - curr_blk_N),
                             &reply_get_B);
     athread_dma_wait_value(&reply_get_A, 1);
     athread_dma_wait_value(&reply_get_B, 1);
@@ -3071,13 +3071,13 @@ void sw_slave_bmm_rcr(sw_bmmPara *_){
                                                 sizeof(float) * (K - blk_K),
                                                 &reply_get_B);
                     }
-                    for(int m = 0; m < curr_blk_M; m++)
+                    /* for(int m = 0; m < curr_blk_M; m++)
                         for(int n = 0; n < curr_blk_N; n++)
                             for(int k = 0; k < curr_blk_K; k++){
                                 local_C[(1 - double_buffer_flag_C) * local_C_size + m * curr_blk_N + n]
                              += local_A[(1 - double_buffer_flag_AB) * local_A_size + m * curr_blk_K + k]
                               * local_B[(1 - double_buffer_flag_AB) * local_B_size + n * curr_blk_K + k];
-                            }
+                            } */
                     //gemm
                     if(c_N * num_M * num_K + c_M * num_K + c_K +1 < num_M * num_N * num_K || local_now < local_end - 1){
                         athread_dma_wait_value(&reply_get_A, 1);
@@ -3266,13 +3266,13 @@ void sw_slave_bmm_crr(sw_bmmPara *_){
                                                 sizeof(float) * (N - blk_N),
                                                 &reply_get_B);
                     }
-                    for(int m = 0; m < curr_blk_M; m++)
+                    /* for(int m = 0; m < curr_blk_M; m++)
                         for(int n = 0; n < curr_blk_N; n++)
                             for(int k = 0; k < curr_blk_K; k++){
                                 local_C[(1 - double_buffer_flag_C) * local_C_size + m * curr_blk_N + n]
                              += local_A[(1 - double_buffer_flag_AB) * local_A_size + k * curr_blk_M + m]
                               * local_B[(1 - double_buffer_flag_AB) * local_B_size + k * curr_blk_N + n];
-                            }
+                            } */
                     //gemm
                     if(c_N * num_M * num_K + c_M * num_K + c_K +1 < num_M * num_N * num_K || local_now < local_end - 1){
                         athread_dma_wait_value(&reply_get_A, 1);
