@@ -21,8 +21,22 @@ extern SLAVE_FUN(sw_slave_gemm_rcr_cgn_f32)(sw_gemmPara_t);
 extern SLAVE_FUN(sw_slave_gemm_copy_all_H_f32)(sw_gemmPara_t);
 extern SLAVE_FUN(sw_slave_gemm_copy_all_f32)(sw_gemmPara_t);
 
+
+
+
+
+
+//gemm final
 extern SLAVE_FUN(sw_slave_gemm_rrr_sli_cgn_f32)(sw_gemmPara_t);
 extern SLAVE_FUN(sw_slave_gemm_crr_sli_cgn_f32)(sw_gemmPara_t);
+
+
+
+
+
+
+
+
 
 extern SLAVE_FUN(sw_slave_gemm_rcr_all_cgn_no_trans_f32)(sw_gemmPara_t);
 extern SLAVE_FUN(sw_slave_gemm_rrr_all_cgn_f32)(sw_gemmPara_t);
@@ -33,40 +47,6 @@ extern SLAVE_FUN(sw_slave_bmm_rrr)(sw_bmmPara_t);
 extern SLAVE_FUN(sw_slave_bmm_rcr)(sw_bmmPara_t);
 extern SLAVE_FUN(sw_slave_bmm_crr)(sw_bmmPara_t);
 extern void *para_cross; // param on cross seg
-
-int swptex_mm(const void *A, const void *B, void *C, int M, int N,
-              int K, int transposeA, int transposeB)
-{
-    swptex_mmPara para;
-    para.A = A;
-    para.B = B;
-    para.C = C;
-    para.M = M;
-    para.N = N;
-    para.K = K;
-
-    para_cross = &para; // cross seg variable to pass param
-
-    int ret = athread_init_cgs();
-    if (!transposeA && transposeB)
-    {
-        ret = athread_spawn_cgs(sw_slave_mm_ABT, &para);
-    }
-    else if (transposeA && !transposeB)
-    {
-        ret = athread_spawn_cgs(sw_slave_mm_ATB, &para);
-    }
-    else if (!transposeA && !transposeB)
-    {
-        ret = athread_spawn_cgs(sw_slave_mm_AB, &para);
-    }
-    else
-    {
-        printf("not supported\n");
-        return 0;
-    }
-    athread_join_cgs();
-}
 
 void check_A_B_f32(const float* A, const float* Ap,
                    const float* B, const float* Bp,
@@ -156,101 +136,46 @@ void check_C_all_f32(float* C, float* check_C,
     printf("checking C all passed\n");
 }
 
-void test_gemm_crr(){
-    struct timeval tv1, tv2;
-    int M = 64;
-    int N = 768;
-    int K = 12800;
-    int blk_M = 64;
-    int blk_N = 768;
-    int blk_K = 1280;
-    int bn = 1;// six gemm
-    float *A = malloc(sizeof(float) * bn * M * K);
-    float *B = malloc(sizeof(float) * bn * K * N);
-    float *C = malloc(sizeof(float) * bn * M * N);
-    float *check_C = malloc(sizeof(float) * bn * M * N);
-    for (int i = 0; i < bn * M * K; i++){
-        A[i] = rand()*1.0/RAND_MAX;
-    }
-    for (int i = 0; i < bn * K * N; i++){
-        B[i] = rand()*1.0/RAND_MAX;
-    }
-    for (int i = 0; i < bn * M * N; i++){
-        C[i] = 0;
-    }
-    for (int i = 0; i < bn * M * N; i++){
-        check_C[i] = 0;
-    }
 
-    int Ms = (M / blk_M) * blk_M;
-    int Ns = (N / blk_N) * blk_N;
-    int Ks = (K / blk_K) * blk_K;
-    int Me = M % blk_M != 0 ? Ms + blk_M : Ms;
-    int Ne = N % blk_N != 0 ? Ns + blk_N : Ns;
-    int Ke = K % blk_K != 0 ? Ks + blk_K : Ks;
 
-    printf("M %d Ms %d Me %d blk_M %d\nN %d Ns %d Ne %d blk_N %d\nK %d Ks %d Ke %d blk_K %d\n",
-            M,Ms,Me,blk_M,N,Ns,Ne,blk_N,K,Ks,Ke,blk_K);
-    printf("GEMM size: M %d N %d K %d\n", M, N, K);
-    printf("Testing GEMM CRR F32 triple buffer asm no\n");
-    gettimeofday(&tv1, NULL);
 
-    float* Ap = malloc(sizeof(float) * bn * Me * Ke);
-    float* Bp = malloc(sizeof(float) * bn * Ke * Ne);
-    float* Cp = malloc(sizeof(float) * bn * Me * Ne);
 
-    sw_gemmPara para;
-    para.counts = bn;
-    para.blk_M = blk_M;
-    para.blk_N = blk_N;
-    para.blk_K = blk_K;
-    para.A = A;
-    para.Ap = Ap;
-    para.B = B;
-    para.Bp = Bp;
-    para.C = C;
-    para.Cp = Cp;
-    para.M = M;
-    para.Ms = Ms;
-    para.Me = Me;
-    para.N = N;
-    para.Ns = Ns;
-    para.Ne = Ne;
-    para.K = K;
-    para.Ks = Ks;
-    para.Ke = Ke;
-    para_cross = &para;
 
-    int ret = athread_init_cgs();
-    ret = athread_spawn_cgs(sw_slave_gemm_crr_f32, &para);
-    athread_join_cgs();
 
-    gettimeofday(&tv2, NULL);
 
-    double optimized_seconds = (tv2.tv_sec - tv1.tv_sec) + (tv2.tv_usec - tv1.tv_usec) * 1.0e-6;
-    printf("Result of GEMM CRR F32 triple buffer asm no: %lf\n", optimized_seconds);
 
-    //check_copy_border_f32(A, Ap, M, Ms, Me, blk_M, K, Ks, Ke, blk_K);
-    //check_copy_border_f32(B, Bp, K, Ks, Ke, blk_K, N, Ns, Ne, blk_N);
-    //check_A_B_f32(A, Ap, B, Bp, M, Ms, Me, K, Ks, Ke);
-    printf("Testing GEMM CRR F32 hardware cache \n");
-    gettimeofday(&tv1, NULL);
-    swptex_mm(A,B,check_C,M,N,K,1,0);
-    gettimeofday(&tv2, NULL);
-    double origin_seconds = (tv2.tv_sec - tv1.tv_sec) + (tv2.tv_usec - tv1.tv_usec) * 1.0e-6;
-    printf("Result of GEMM CRR F32 hardware cache: %lf\n", origin_seconds);
 
-    //check_copy_border_f32(check_C, Cp, M, Ms, Me, blk_M, N, Ns, Ne, blk_N);
-    check_C_all_f32(C, check_C, M, N);
 
-    free(A);
-    free(Ap);
-    free(B);
-    free(Bp);
-    free(C);
-    free(Cp);
-    free(check_C);
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 float estimite_compute_time(int blkM, int blkN, int blkK, int M, int N, int K)
 {
@@ -585,9 +510,9 @@ void gemm_crr_all(float* A, float* B, float* C, int M, int N, int K){
 
 void test_gemm_crr_all(){
     struct timeval tv1, tv2;
-    int M = 768;
-    int N = 3072;
-    int K = 400;
+    int M = 32;
+    int N = 64;
+    int K = 12800;
     float *A = malloc(sizeof(float) * M * K);
     float *B = malloc(sizeof(float) * K * N);
     float *C = malloc(sizeof(float) * M * N);
@@ -778,9 +703,9 @@ void gemm_rrr_all(float *A, float *B, float* C, int M, int N, int K){
 
 void test_gemm_rrr_all(){
     struct timeval tv1, tv2;
-    int M = 400;
-    int N = 3072;
-    int K = 768;
+    int M = 12800;
+    int N = 64;
+    int K = 32;
     float *A = malloc(sizeof(float) * M * K);
     float *B = malloc(sizeof(float) * K * N);
     float *C = malloc(sizeof(float) * M * N);
@@ -917,6 +842,154 @@ void test_gemm_rrr(){
     double origin_seconds = (tv2.tv_sec - tv1.tv_sec) + (tv2.tv_usec - tv1.tv_usec) * 1.0e-6;
     printf("Result of gemm rrr f32 hardware cache: %lf\n", origin_seconds);
 
+    check_C_all_f32(C, check_C, M, N);
+
+    free(A);
+    free(Ap);
+    free(B);
+    free(Bp);
+    free(C);
+    free(Cp);
+    free(check_C);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+void test_gemm_crr(){
+    struct timeval tv1, tv2;
+    int M = 64;
+    int N = 768;
+    int K = 12800;
+    int blk_M = 64;
+    int blk_N = 768;
+    int blk_K = 1280;
+    int bn = 1;// six gemm
+    float *A = malloc(sizeof(float) * bn * M * K);
+    float *B = malloc(sizeof(float) * bn * K * N);
+    float *C = malloc(sizeof(float) * bn * M * N);
+    float *check_C = malloc(sizeof(float) * bn * M * N);
+    for (int i = 0; i < bn * M * K; i++){
+        A[i] = rand()*1.0/RAND_MAX;
+    }
+    for (int i = 0; i < bn * K * N; i++){
+        B[i] = rand()*1.0/RAND_MAX;
+    }
+    for (int i = 0; i < bn * M * N; i++){
+        C[i] = 0;
+    }
+    for (int i = 0; i < bn * M * N; i++){
+        check_C[i] = 0;
+    }
+
+    int Ms = (M / blk_M) * blk_M;
+    int Ns = (N / blk_N) * blk_N;
+    int Ks = (K / blk_K) * blk_K;
+    int Me = M % blk_M != 0 ? Ms + blk_M : Ms;
+    int Ne = N % blk_N != 0 ? Ns + blk_N : Ns;
+    int Ke = K % blk_K != 0 ? Ks + blk_K : Ks;
+
+    printf("M %d Ms %d Me %d blk_M %d\nN %d Ns %d Ne %d blk_N %d\nK %d Ks %d Ke %d blk_K %d\n",
+            M,Ms,Me,blk_M,N,Ns,Ne,blk_N,K,Ks,Ke,blk_K);
+    printf("GEMM size: M %d N %d K %d\n", M, N, K);
+    printf("Testing GEMM CRR F32 triple buffer asm no\n");
+    gettimeofday(&tv1, NULL);
+
+    float* Ap = malloc(sizeof(float) * bn * Me * Ke);
+    float* Bp = malloc(sizeof(float) * bn * Ke * Ne);
+    float* Cp = malloc(sizeof(float) * bn * Me * Ne);
+
+    sw_gemmPara para;
+    para.counts = bn;
+    para.blk_M = blk_M;
+    para.blk_N = blk_N;
+    para.blk_K = blk_K;
+    para.A = A;
+    para.Ap = Ap;
+    para.B = B;
+    para.Bp = Bp;
+    para.C = C;
+    para.Cp = Cp;
+    para.M = M;
+    para.Ms = Ms;
+    para.Me = Me;
+    para.N = N;
+    para.Ns = Ns;
+    para.Ne = Ne;
+    para.K = K;
+    para.Ks = Ks;
+    para.Ke = Ke;
+    para_cross = &para;
+
+    int ret = athread_init_cgs();
+    ret = athread_spawn_cgs(sw_slave_gemm_crr_f32, &para);
+    athread_join_cgs();
+
+    gettimeofday(&tv2, NULL);
+
+    double optimized_seconds = (tv2.tv_sec - tv1.tv_sec) + (tv2.tv_usec - tv1.tv_usec) * 1.0e-6;
+    printf("Result of GEMM CRR F32 triple buffer asm no: %lf\n", optimized_seconds);
+
+    //check_copy_border_f32(A, Ap, M, Ms, Me, blk_M, K, Ks, Ke, blk_K);
+    //check_copy_border_f32(B, Bp, K, Ks, Ke, blk_K, N, Ns, Ne, blk_N);
+    //check_A_B_f32(A, Ap, B, Bp, M, Ms, Me, K, Ks, Ke);
+    printf("Testing GEMM CRR F32 hardware cache \n");
+    gettimeofday(&tv1, NULL);
+    swptex_mm(A,B,check_C,M,N,K,1,0);
+    gettimeofday(&tv2, NULL);
+    double origin_seconds = (tv2.tv_sec - tv1.tv_sec) + (tv2.tv_usec - tv1.tv_usec) * 1.0e-6;
+    printf("Result of GEMM CRR F32 hardware cache: %lf\n", origin_seconds);
+
+    //check_copy_border_f32(check_C, Cp, M, Ms, Me, blk_M, N, Ns, Ne, blk_N);
     check_C_all_f32(C, check_C, M, N);
 
     free(A);
@@ -2218,6 +2291,40 @@ void test_sw_bmm_all(){
     free(B);
     free(C);
     free(check_C);
+}
+
+int swptex_mm(const void *A, const void *B, void *C, int M, int N,
+              int K, int transposeA, int transposeB)
+{
+    swptex_mmPara para;
+    para.A = A;
+    para.B = B;
+    para.C = C;
+    para.M = M;
+    para.N = N;
+    para.K = K;
+
+    para_cross = &para; // cross seg variable to pass param
+
+    int ret = athread_init_cgs();
+    if (!transposeA && transposeB)
+    {
+        ret = athread_spawn_cgs(sw_slave_mm_ABT, &para);
+    }
+    else if (transposeA && !transposeB)
+    {
+        ret = athread_spawn_cgs(sw_slave_mm_ATB, &para);
+    }
+    else if (!transposeA && !transposeB)
+    {
+        ret = athread_spawn_cgs(sw_slave_mm_AB, &para);
+    }
+    else
+    {
+        printf("not supported\n");
+        return 0;
+    }
+    athread_join_cgs();
 }
 
 int swptex_bmm(const void *A, const void *B, void *C, int batch, int M,
