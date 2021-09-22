@@ -3,7 +3,7 @@
 #include <string.h>
 int main(int argc, char *argv[]){
     for(int i = 0; i < 999; i++){
-        test_sw_bmm_all();
+        //test_sw_bmm_all();
         //test_gemm_rrr4();
 
         //test_copy_all();

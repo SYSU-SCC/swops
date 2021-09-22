@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <slave.h>
 #include "args.h"
 
 #define _F_PRECISION 1e-5
@@ -112,12 +113,12 @@ void get_best_blk_rrr(int M, int N, int K, int *best_blk_M, int *best_blk_N, int
 
     int ldm_use = sizeof(float) * (4 * temp_N * temp_K + 4 * temp_K * 64 + 3 * temp_N * 64) / 64;// try blk_M = 64
 
-    if(ldm_use < 220 * 1024 && temp_N % 64 == 0 && temp_K % 64 == 0){
+    if(ldm_use < 225 * 1024 && temp_N % 64 == 0 && temp_K % 64 == 0){
         blk_N = temp_N;
         blk_K = temp_K;
         for(blk_M = 64; blk_M <= temp_M && blk_M <= 8192 && blk_M * 6 <= temp_M + blk_M/2; blk_M += 64){
             ldm_use = sizeof(float) * (4 * blk_N * blk_K + 4 * blk_K * blk_M + 3 * blk_N * blk_M ) / 64;
-            if(ldm_use < 220 * 1024){
+            if(ldm_use < 225 * 1024){
                 /* int bsizeN = blk_N / 8 * sizeof(float);
 			    int bsizeM = blk_M / 8 * sizeof(float);
 
@@ -145,7 +146,7 @@ void get_best_blk_rrr(int M, int N, int K, int *best_blk_M, int *best_blk_N, int
             for(blk_N = 64; blk_N <= temp_N && blk_N <= 8192; blk_N += 64){
                 for(blk_K = 64; blk_K <= temp_K && blk_K <= 8192; blk_K += 64){
                     ldm_use = sizeof(float) * (4 * blk_N * blk_K + 4 * blk_K * blk_M + 3 * blk_N * blk_M ) / 64;
-                    if(ldm_use < 220 * 1024 && temp_N % blk_N == 0 && temp_K % blk_K == 0 && blk_M * 6 <= temp_M + blk_M){
+                    if(ldm_use < 225 * 1024 && temp_N % blk_N == 0 && temp_K % blk_K == 0 && blk_M * 6 <= temp_M + blk_M){
                         int bsizeN = blk_N / 8 * sizeof(float);
 			            int bsizeM = blk_M / 8 * sizeof(float);
 
@@ -192,14 +193,14 @@ void get_best_blk_crr(int M, int N, int K, int *best_blk_M, int *best_blk_N, int
     int blk_N = 64;
     int blk_K = 64;
 
-    int ldm_use = sizeof(float) * (4 * temp_N * 64 + 4 * 64 * temp_M + 3 * temp_N * temp_M) / 64;// try blk_M = 64
+    int ldm_use = sizeof(float) * (4 * temp_N * 64 + 5 * 64 * temp_M + 3 * temp_N * temp_M) / 64;// try blk_M = 64
 
-    if(ldm_use < 220 * 1024 && temp_M % 64 == 0 && temp_N % 64 == 0){
+    if(ldm_use < 225 * 1024 && temp_M % 64 == 0 && temp_N % 64 == 0){
         blk_M = temp_M;
         blk_N = temp_N;
         for(blk_K = 64; blk_K <= temp_K && blk_K <= 8192 && blk_K * 6 <= temp_K + blk_K/2 ; blk_K += 64){
-            ldm_use = sizeof(float) * (4 * blk_N * blk_K + 4 * blk_K * blk_M + 3 * blk_N * blk_M) / 64;
-            if(ldm_use < 220 * 1024){
+            ldm_use = sizeof(float) * (4 * blk_N * blk_K + 5 * blk_K * blk_M + 3 * blk_N * blk_M) / 64;
+            if(ldm_use < 225 * 1024){
 
                 /* int bsizeN = blk_N / 8 * sizeof(float);
 			    int bsizeM = blk_M / 8 * sizeof(float);
@@ -231,9 +232,9 @@ void get_best_blk_crr(int M, int N, int K, int *best_blk_M, int *best_blk_N, int
             for(blk_N = 64; blk_N <= temp_N && blk_N <= 8192; blk_N += 64){
                 for(blk_K = 64; blk_K <= temp_K && blk_K <= 8192; blk_K += 64){
                     
-                    ldm_use = sizeof(float) * (4 * blk_N * blk_K + 4 * blk_K * blk_M + 3 * blk_N * blk_M ) / 64;
+                    ldm_use = sizeof(float) * (4 * blk_N * blk_K + 5 * blk_K * blk_M + 3 * blk_N * blk_M ) / 64;
                     
-                    if(ldm_use < 220 * 1024 && temp_M % blk_M == 0 && temp_N % blk_N == 0 && blk_K * 6 <= temp_K + blk_K){
+                    if(ldm_use < 225 * 1024 && temp_M % blk_M == 0 && temp_N % blk_N == 0 && blk_K * 6 <= temp_K + blk_K/2){
                         
                         int bsizeN = blk_N / 8 * sizeof(float);
 			            int bsizeM = blk_M / 8 * sizeof(float);
@@ -674,9 +675,9 @@ void check_C_all_f32(float* C, float* check_C,
 
 void test_gemm_crr_all(){
     struct timeval tv1, tv2;
-    int M = 4096;
-    int N = 2048;
-    int K = 6144;
+    int M = 555;
+    int N = 666;
+    int K = 7777;
     float *A = _sw_xmalloc(sizeof(float) * M * K);
     float *B = _sw_xmalloc(sizeof(float) * K * N);
     float *C = _sw_xmalloc(sizeof(float) * M * N);
@@ -700,7 +701,7 @@ void test_gemm_crr_all(){
         check_C[i] = 0;
     }
 
-
+    double flops = (double)2 * K / 1024 * N / 1024 * M / 1024;
     gettimeofday(&tv1, NULL);
 
     gemm_crr_all(A,B,C,M,N,K);
@@ -708,21 +709,16 @@ void test_gemm_crr_all(){
     gettimeofday(&tv2, NULL);
 
     double optimized_seconds = (tv2.tv_sec - tv1.tv_sec) + (tv2.tv_usec - tv1.tv_usec) * 1.0e-6;
-#ifdef _SWOPS_DEBUG
-    printf("Result of gemm crr f32 cgn all, triple buffer with asm: %lf\n", optimized_seconds);
-#endif
-    
+    printf("Result of gemm crr f32 cgn all, quadruple buffer with asm time: %lf flops %lfG\n", optimized_seconds, flops/optimized_seconds);
 
     gettimeofday(&tv1, NULL);
 
-    //swptex_mm(A, B, check_C, M, N, K, 1, 0);
+    swptex_mm(A, B, check_C, M, N, K, 1, 0);
 
     gettimeofday(&tv2, NULL);
 
     double origin_seconds = (tv2.tv_sec - tv1.tv_sec) + (tv2.tv_usec - tv1.tv_usec) * 1.0e-6;
-#ifdef _SWOPS_DEBUG
     printf("Result of gemm crr f32 hardware cache: %lf\n", origin_seconds);
-#endif
 
     check_C_all_f32(C, check_C, M, N);
 
