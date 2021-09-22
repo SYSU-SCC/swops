@@ -112,12 +112,12 @@ void get_best_blk_rrr(int M, int N, int K, int *best_blk_M, int *best_blk_N, int
 
     int ldm_use = sizeof(float) * (4 * temp_N * temp_K + 4 * temp_K * 64 + 3 * temp_N * 64) / 64;// try blk_M = 64
 
-    if(ldm_use < 210 * 1024 && temp_N % 64 == 0 && temp_K % 64 == 0){
+    if(ldm_use < 220 * 1024 && temp_N % 64 == 0 && temp_K % 64 == 0){
         blk_N = temp_N;
         blk_K = temp_K;
         for(blk_M = 64; blk_M <= temp_M && blk_M <= 8192 && blk_M * 6 <= temp_M + blk_M/2; blk_M += 64){
             ldm_use = sizeof(float) * (4 * blk_N * blk_K + 4 * blk_K * blk_M + 3 * blk_N * blk_M ) / 64;
-            if(ldm_use < 210 * 1024){
+            if(ldm_use < 220 * 1024){
                 /* int bsizeN = blk_N / 8 * sizeof(float);
 			    int bsizeM = blk_M / 8 * sizeof(float);
 
@@ -145,7 +145,7 @@ void get_best_blk_rrr(int M, int N, int K, int *best_blk_M, int *best_blk_N, int
             for(blk_N = 64; blk_N <= temp_N && blk_N <= 8192; blk_N += 64){
                 for(blk_K = 64; blk_K <= temp_K && blk_K <= 8192; blk_K += 64){
                     ldm_use = sizeof(float) * (4 * blk_N * blk_K + 4 * blk_K * blk_M + 3 * blk_N * blk_M ) / 64;
-                    if(ldm_use < 210 * 1024 && temp_N % blk_N == 0 && temp_K % blk_K == 0 && blk_M * 6 <= temp_M + blk_M){
+                    if(ldm_use < 220 * 1024 && temp_N % blk_N == 0 && temp_K % blk_K == 0 && blk_M * 6 <= temp_M + blk_M){
                         int bsizeN = blk_N / 8 * sizeof(float);
 			            int bsizeM = blk_M / 8 * sizeof(float);
 
@@ -194,12 +194,12 @@ void get_best_blk_crr(int M, int N, int K, int *best_blk_M, int *best_blk_N, int
 
     int ldm_use = sizeof(float) * (4 * temp_N * 64 + 4 * 64 * temp_M + 3 * temp_N * temp_M) / 64;// try blk_M = 64
 
-    if(ldm_use < 210 * 1024 && temp_M % 64 == 0 && temp_N % 64 == 0){
+    if(ldm_use < 220 * 1024 && temp_M % 64 == 0 && temp_N % 64 == 0){
         blk_M = temp_M;
         blk_N = temp_N;
         for(blk_K = 64; blk_K <= temp_K && blk_K <= 8192 && blk_K * 6 <= temp_K + blk_K/2 ; blk_K += 64){
             ldm_use = sizeof(float) * (4 * blk_N * blk_K + 4 * blk_K * blk_M + 3 * blk_N * blk_M) / 64;
-            if(ldm_use < 210 * 1024){
+            if(ldm_use < 220 * 1024){
 
                 /* int bsizeN = blk_N / 8 * sizeof(float);
 			    int bsizeM = blk_M / 8 * sizeof(float);
@@ -233,7 +233,7 @@ void get_best_blk_crr(int M, int N, int K, int *best_blk_M, int *best_blk_N, int
                     
                     ldm_use = sizeof(float) * (4 * blk_N * blk_K + 4 * blk_K * blk_M + 3 * blk_N * blk_M ) / 64;
                     
-                    if(ldm_use < 210 * 1024 && temp_M % blk_M == 0 && temp_N % blk_N == 0 && blk_K * 6 <= temp_K + blk_K){
+                    if(ldm_use < 220 * 1024 && temp_M % blk_M == 0 && temp_N % blk_N == 0 && blk_K * 6 <= temp_K + blk_K){
                         
                         int bsizeN = blk_N / 8 * sizeof(float);
 			            int bsizeM = blk_M / 8 * sizeof(float);
@@ -2185,13 +2185,21 @@ void sw_bmm_crr(const void *A, const void *B, void *C, int batch,
 
 void sw_bmm(const void *A, const void *B, void *C, int batch, int M,
                int N, int K, int transposeA, int transposeB){
-    int best_blk_M = 8;
-    int best_blk_N = 8;
-    int best_blk_K = 8;
-    if((M * K + K * N + M * N) * 2 < 200 * 1024){
-        best_blk_M = (M/8 + 1) * 8;
-        best_blk_N = (N/8 + 1) * 8;
-        best_blk_K = (K/8 + 1) * 8;
+    const int temp_blk_M = (M/8 + 1) * 8;
+    const int temp_blk_N = (N/8 + 1) * 8;
+    const int temp_blk_K = (K/8 + 1) * 8;
+    int best_blk_M = 64;
+    int best_blk_N = 64;
+    int best_blk_K = 64;//temp_blk_M * temp_blk_K * transposeA + 
+    if((temp_blk_M * temp_blk_K * 2 + 
+        temp_blk_K * temp_blk_N * 2 + 
+        temp_blk_M * temp_blk_N * 4 + 
+        temp_blk_M * temp_blk_K * transposeA + 
+        temp_blk_K * temp_blk_N * transposeB )
+        * sizeof(float) < 200 * 1024){
+        best_blk_M = temp_blk_M;
+        best_blk_N = temp_blk_N;
+        best_blk_K = temp_blk_K;
     }
     else{
         float est_best_time = 1000000;
@@ -2199,7 +2207,12 @@ void sw_bmm(const void *A, const void *B, void *C, int batch, int M,
         for(int blk_M = 8; blk_M <= M && blk_M <= 8192; blk_M += 8){
             for(int blk_N = 8; blk_N <= N && blk_N <= 8192; blk_N += 8){
                 for(int blk_K = 8; blk_K <= K && blk_K <= 8192; blk_K += 8){
-                    int ldm_use = sizeof(float) * 2 * (blk_N * blk_K + blk_K * blk_M + blk_N * blk_M);
+                    int ldm_use = ( blk_M * blk_K * 2 + 
+                                    blk_K * blk_N * 2 + 
+                                    blk_M * blk_N * 4 + 
+                                    blk_M * blk_K * transposeA + 
+                                    blk_K * blk_N * transposeB )
+                                    * sizeof(float);
                     if(ldm_use < 200 * 1024){
                         int bsizeN = blk_N * sizeof(float);
 			            int bsizeM = blk_M * sizeof(float);
@@ -2221,7 +2234,7 @@ void sw_bmm(const void *A, const void *B, void *C, int batch, int M,
             }
         }
     }
-    printf("blk_M %d blk_N %d blk_K %d", best_blk_M, best_blk_N, best_blk_K);
+    printf("blk_M %d blk_N %d blk_K %d\n", best_blk_M, best_blk_N, best_blk_K);
     if(transposeA && (!transposeB)){//crr
         sw_bmm_crr(A,B,C,batch,M,N,K,best_blk_M,best_blk_N,best_blk_K);
     }
@@ -2234,14 +2247,18 @@ void sw_bmm(const void *A, const void *B, void *C, int batch, int M,
 }
 
 void test_sw_bmm_all(){
-    int M = 64;
-    int N = 64;
-    int K = 2048;
-    int bn = 384;//384
-    float *A = malloc(sizeof(float) * bn * M * K);
-    float *B = malloc(sizeof(float) * bn * K * N);
-    float *C = malloc(sizeof(float) * bn * M * N);
-    float *check_C = malloc(sizeof(float) * bn * M * N);
+    int M = 77;
+    int N = 131;
+    int K = 719;
+    int bn = 1536;//384
+    float *A = _sw_xmalloc(sizeof(float) * bn * M * K);
+    float *B = _sw_xmalloc(sizeof(float) * bn * K * N);
+    float *C = _sw_xmalloc(sizeof(float) * bn * M * N);
+    float *check_C = _sw_xmalloc(sizeof(float) * bn * M * N);
+    printf("A ptr %p\n", A);
+    printf("B ptr %p\n", B);
+    printf("C ptr %p\n", C);
+    printf("check_C ptr %p\n", check_C);
     for (int i = 0; i < bn * M * K; i++){
         A[i] = rand()*1.0/RAND_MAX;
     }
@@ -2270,7 +2287,7 @@ void test_sw_bmm_all(){
     double origin_seconds = (tv2.tv_sec - tv1.tv_sec) + (tv2.tv_usec - tv1.tv_usec) * 1.0e-6;
 
     for(int i = 0; i < bn * M * N; i++){
-        if(fabs(check_C[i] - C[i])>0.0001){
+        if(NEQUAL_F(check_C[i], C[i])){
             printf("error at %d check_C: %f C %f\n", i, check_C[i], C[i]);
             break;
         }
@@ -2291,7 +2308,7 @@ void test_sw_bmm_all(){
     origin_seconds = (tv2.tv_sec - tv1.tv_sec) + (tv2.tv_usec - tv1.tv_usec) * 1.0e-6;
 
     for(int i = 0; i < bn * M * N; i++){
-        if(fabs(check_C[i] - C[i])>0.0001){
+        if(NEQUAL_F(check_C[i], C[i])){
             printf("error at %d check_C: %f C %f\n", i, check_C[i], C[i]);
             break;
         }
@@ -2312,7 +2329,7 @@ void test_sw_bmm_all(){
     origin_seconds = (tv2.tv_sec - tv1.tv_sec) + (tv2.tv_usec - tv1.tv_usec) * 1.0e-6;
 
     for(int i = 0; i < bn * M * N; i++){
-        if(fabs(check_C[i] - C[i])>0.0001){
+        if(NEQUAL_F(check_C[i], C[i])){
             printf("error at %d check_C: %f C %f\n", i, check_C[i], C[i]);
             break;
         }
@@ -2321,10 +2338,10 @@ void test_sw_bmm_all(){
     printf("bmm rcr optimized: %lf\n", optimized_seconds);
 
 
-    free(A);
-    free(B);
-    free(C);
-    free(check_C);
+    _sw_xfree(A);
+    _sw_xfree(B);
+    _sw_xfree(C);
+    _sw_xfree(check_C);
 }
 
 int swptex_mm(const void *A, const void *B, void *C, int M, int N,
