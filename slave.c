@@ -1153,6 +1153,9 @@ void sw_slave_gemm_crr_asm_cgn(const int CGN_id,
 
     floatv8 a1,a2,a3,a4,a5,a6,a7,a8;
 
+    doublev8 vec_double;
+    floatv8 vec_float;
+
     for(int c_M = 0; c_M < num_M; c_M++){
         curr_blk_M = c_M < num_M - 1 ? blk_M : rem_blk_M;
         for(int c_N = 0; c_N < num_N; c_N++){
@@ -1382,10 +1385,16 @@ void sw_slave_gemm_crr_asm_cgn(const int CGN_id,
                 curr_N = Ne;
                 C_step = Ne - blk_N/8;
             }
-            for(int m = 0; m < (blk_M/8); m++){
+            /* for(int m = 0; m < (blk_M/8); m++){
                 for(int n = 0; n < (blk_N/8); n++){
                     local_C_dma[m * (blk_N/8) + n] -= local_C[m * (blk_N/8) + n];
                 }
+            } */
+
+            for(int i = 0; i < Md * Nd; i += 8){
+                simd_load(vec_double, local_C + i);
+                vec_float = - (floatv8)vec_double;
+                simd_store(vec_float, local_C_dma + i);
             }
             
             athread_dma_put_stride(curr_C + c_M * blk_M * curr_N + c_N * blk_N,
@@ -1504,7 +1513,8 @@ void sw_slave_gemm_rrr_asm_cgn(const int CGN_id,
     dma_get_A = 0;
     dma_get_B = 0;
 
-
+    doublev8 vec_double;
+    floatv8 vec_float;
 
     for(int c_M = 0; c_M < num_M; c_M++){
         curr_blk_M = c_M < num_M - 1 ? blk_M : rem_blk_M;
@@ -1688,11 +1698,18 @@ void sw_slave_gemm_rrr_asm_cgn(const int CGN_id,
                 C_step = Ne - blk_N/8;
             }
 
-            for(int m = 0; m < Md; m++){
+            /* for(int m = 0; m < Md; m++){
                 for(int n = 0; n < Nd; n++){
                     local_C_dma[m * Nd + n] -= local_C[m * Nd + n];
                 }
+            } */
+
+            for(int i = 0; i < Md * Nd; i += 8){
+                simd_load(vec_double, local_C + i);
+                vec_float = - (floatv8)vec_double;
+                simd_store(vec_float, local_C_dma + i);
             }
+
             athread_dma_put_stride(curr_C + c_M * blk_M * curr_N + c_N * blk_N,
                                     local_C_dma,
                                     sizeof(float) * local_C_size,
@@ -1807,7 +1824,8 @@ void sw_slave_gemm_rrr_quad_cgn(const int CGN_id,
     dma_get_A = 0;
     dma_get_B = 0;
 
-
+    doublev8 vec_double;
+    floatv8 vec_float;
 
     for(int c_M = 0; c_M < num_M; c_M++){
         curr_blk_M = c_M < num_M - 1 ? blk_M : rem_blk_M;
@@ -1995,11 +2013,19 @@ void sw_slave_gemm_rrr_quad_cgn(const int CGN_id,
                 C_step = Ne - blk_N/8;
             }
 
-            for(int m = 0; m < (blk_M/8); m++){
+            /* for(int m = 0; m < (blk_M/8); m++){
                 for(int n = 0; n < (blk_N/8); n++){
                     local_C_dma[m * (blk_N/8) + n] -= local_C[m * (blk_N/8) + n];
                 }
+            } */
+
+            for(int i = 0; i < Md * Nd; i += 8){
+                simd_load(vec_double, local_C + i);
+                vec_float = - (floatv8)vec_double;
+                simd_store(vec_float, local_C_dma + i);
             }
+
+            
             athread_dma_put_stride(curr_C + c_M * blk_M * curr_N + c_N * blk_N,
                                     local_C_dma,
                                     sizeof(float) * local_C_size,
@@ -2011,6 +2037,393 @@ void sw_slave_gemm_rrr_quad_cgn(const int CGN_id,
     ldm_free(local_A, sizeof(float) * 2 * blk_M * blk_K / 64);
     ldm_free(local_B, sizeof(float) * 2 * blk_K * blk_N / 64);
     ldm_free(local_C, sizeof(double) * blk_M * blk_N / 64);
+    ldm_free(local_A_dma, sizeof(float) * 2 * blk_M * blk_K / 64);
+    ldm_free(local_B_dma, sizeof(float) * 2 * blk_K * blk_N / 64);
+    ldm_free(local_C_dma, sizeof(float) * blk_M * blk_N / 64);
+}
+
+void sw_slave_gemm_rcr_asm_cgn(const int CGN_id,
+                                const float* A, const float* Ap,
+                                const float* B, const float* Bp,
+                                const float* C, const float* Cp,
+                                const int M, const int Ms, const int Me, const int blk_M,
+                                const int N, const int Ns, const int Ne, const int blk_N,
+                                const int K, const int Ks, const int Ke, const int blk_K){
+    if(CRTS_cgn != CGN_id){
+        return;
+    }
+
+    const int cid = CRTS_tid % 8;
+    const int rid = CRTS_tid / 8;
+
+    const int Md = blk_M/8;
+    const int Nd = blk_N/8;
+    const int Kd = blk_K/8;
+
+    const int num_M = (M + blk_M - 1) / blk_M;
+    const int num_N = (N + blk_N - 1) / blk_N;
+    const int num_K = (K + blk_K - 1) / blk_K;
+
+    const int rem_blk_M = num_M * blk_M - M == 0 ? blk_M : M - (num_M-1) * blk_M;
+    const int rem_blk_N = num_N * blk_N - N == 0 ? blk_N : N - (num_N-1) * blk_N;
+    const int rem_blk_K = num_K * blk_K - K == 0 ? blk_K : K - (num_K-1) * blk_K;
+
+    const int local_A_size = blk_M * blk_K / 64;
+    const int local_B_size = blk_K * blk_N / 64;
+    const int local_C_size = blk_M * blk_N / 64;
+
+    float* local_A = (float*)ldm_malloc(sizeof(float) * 2 * blk_M * blk_K / 64);
+    float* local_B = (float*)ldm_malloc(sizeof(float) * 2 * blk_K * blk_N / 64);
+    double* local_C = (double*)ldm_malloc(sizeof(double) * blk_M * blk_N / 64);
+
+    float* trans_B = (float*)ldm_malloc(sizeof(float) * blk_K * blk_N / 64);
+
+    float* local_A_dma = (float*)ldm_malloc(sizeof(float) * 2 * blk_M * blk_K / 64);
+    float* local_B_dma = (float*)ldm_malloc(sizeof(float) * 2 * blk_K * blk_N / 64);
+    float* local_C_dma = (float*)ldm_malloc(sizeof(float) * blk_M * blk_N / 64);
+
+    const float* start_A = A + rid * blk_M/8 * K + cid * blk_K/8;
+    const float* start_B = B + cid * blk_N/8 * K + rid * blk_K/8;
+    const float* start_C = C + rid * blk_M/8 * N + cid * blk_N/8;
+
+    const float* start_Ap = Ap + rid * blk_M/8 * Ke + cid * blk_K/8;
+    const float* start_Bp = Bp + cid * blk_N/8 * Ke + rid * blk_K/8;
+    const float* start_Cp = Cp + rid * blk_M/8 * Ne + cid * blk_N/8;
+
+    float* next_A = A;
+    float* next_B = B;
+    float* next_C = C;
+    float* curr_C = C;
+
+    int A_step = K - blk_K/8;
+    int B_step = K - blk_K/8;
+    int C_step = N - blk_N/8;
+
+    int curr_M = M;
+    int curr_N = N;
+    int curA_K = K;
+    int curB_K = K;
+
+    int curr_blk_M = blk_M;
+    int curr_blk_N = blk_N;
+    int curr_blk_K = blk_K;
+
+    int next_A_offset = 0;
+    int next_B_offset = 0;
+    int next_C_offset = 0;
+
+    int next_blk_M = blk_M;
+    int next_blk_N = blk_N;
+    int next_blk_K = blk_K;
+
+    volatile athread_rply_t dma_get_A = 0, dma_get_B = 0, dma_put_C = 0;
+    volatile athread_rply_t rma_local_A = 0, rma_local_B = 0;
+    volatile athread_rply_t rma_A[8] = {0,0,0,0,0,0,0,0}, rma_B[8] = {0,0,0,0,0,0,0,0};
+
+    int double_buffer_A = 0, double_buffer_B = 0; //for rma
+    int double_buffer_DMA = 0;
+
+    athread_dma_iget_stride(local_A_dma + (1 - double_buffer_DMA) * local_A_size, 
+                            start_A, 
+                            sizeof(float) * local_A_size, 
+                            sizeof(float) * blk_K/8, 
+                            sizeof(float) * A_step,
+                            &dma_get_A);
+    athread_dma_iget_stride(local_B_dma + (1 - double_buffer_DMA) * local_B_size, 
+                            start_B, 
+                            sizeof(float) * local_B_size, 
+                            sizeof(float) * blk_K/8, 
+                            sizeof(float) * B_step,
+                            &dma_get_B);
+
+    athread_dma_wait_value(&dma_get_A, 1);
+    athread_dma_wait_value(&dma_get_B, 1);
+
+    dma_get_A = 0;
+    dma_get_B = 0;
+
+    intv16 shuffle1 = {0x8628C020, 0x6AD0A49C, 0xBD8E, 0,0,0,0,0,0,0,0,0,0,0,0,0};
+    intv16 shuffle2 = {0x96ACE128, 0xEEF1ACDE, 0xFF9E, 0,0,0,0,0,0,0,0,0,0,0,0,0};
+    intv16 shuffle3 = {0xA3018820, 0x4398A49C, 0xBDAB, 0,0,0,0,0,0,0,0,0,0,0,0,0};
+    intv16 shuffle4 = {0xB385A928, 0xC7B9ACDE, 0xFFBB, 0,0,0,0,0,0,0,0,0,0,0,0,0};
+    intv16 shuffle5 = {0x8A418820, 0x49CA3039, 0xBDAB, 0,0,0,0,0,0,0,0,0,0,0,0,0};
+    intv16 shuffle6 = {0x9AC5A928, 0xCDEB387B, 0xFFBB, 0,0,0,0,0,0,0,0,0,0,0,0,0};
+
+    floatv8 a1,a2,a3,a4,a5,a6,a7,a8;
+
+    doublev8 vec_double;
+    floatv8 vec_float;
+
+    for(int c_M = 0; c_M < num_M; c_M++){
+        curr_blk_M = c_M < num_M - 1 ? blk_M : rem_blk_M;
+        for(int c_N = 0; c_N < num_N; c_N++){
+        curr_blk_N = c_N < num_N - 1 ? blk_N : rem_blk_N;
+            for(int i = 0; i < local_C_size; i++){
+                local_C[i] = 0;
+            }
+            for(int i = 0; i < local_C_size; i++){
+                local_C_dma[i] = 0;
+            }
+            for(int c_K = 0; c_K < num_K; c_K++){
+                curr_blk_K = c_K < num_K - 1 ? blk_K : rem_blk_K;
+                if(c_M * num_N * num_K + c_N * num_K + c_K + 1 < num_M * num_N * num_K){
+                    next_blk_M = blk_M;
+                    next_blk_N = blk_N;
+                    next_blk_K = blk_K;
+                    if(c_K == num_K - 2){
+                        next_blk_K = rem_blk_K;
+                    }
+                    if(c_K == num_K - 1){
+                        next_blk_K = blk_K;
+                        if(c_N == num_N - 2){
+                            next_blk_N = rem_blk_N;
+                        }
+                        if(c_N == num_N - 1){
+                            next_blk_N = blk_N;
+                            if(c_M == num_M - 2){
+                                next_blk_M = rem_blk_M;
+                            }
+                        }
+                    }//here's bugs
+                    if(c_M == num_M - 1){
+                        next_blk_M = rem_blk_M;
+                    }
+                    //There must be more conditions
+                    if(c_N == num_N - 1 && c_K != num_K - 1){//not the last c_K
+                        next_blk_N = rem_blk_N;
+                    }
+                    //All conditions have been checked
+                    if(next_blk_K != blk_K || next_blk_M != blk_M){
+                        next_A = start_Ap;
+                        curA_K = Ke;
+                        A_step = Ke - blk_K/8;
+                    }
+                    else{
+                        next_A = start_A;
+                        curA_K = K;
+                        A_step = K - blk_K/8;
+                    }
+                    if(next_blk_K != blk_K || next_blk_N != blk_N){
+                        next_B = start_Bp;
+                        curB_K = Ke;
+                        B_step = Ke - blk_K/8;
+                    }
+                    else{
+                        next_B = start_B;
+                        curB_K = K;
+                        B_step = K - blk_K/8;
+                    }
+                    if(c_K == num_K - 1){
+                        if(c_N == num_N - 1){
+                            next_A_offset = (c_M + 1) * blk_M * curA_K;
+                            next_B_offset = 0;
+                        }
+                        else{
+                            next_A_offset = c_M * blk_M * curA_K;
+                            next_B_offset = (c_N + 1) * blk_N * curB_K;
+                        }
+                    }
+                    else{
+                        next_A_offset = c_M * blk_M * curA_K + (c_K + 1) * blk_K;
+                        next_B_offset = c_N * blk_N * curB_K + (c_K + 1) * blk_K;
+                    }
+                    athread_dma_iget_stride(local_A_dma + double_buffer_DMA * local_A_size, 
+                                        next_A + next_A_offset, 
+                                        sizeof(float) * local_A_size, 
+                                        sizeof(float) * blk_K/8, 
+                                        sizeof(float) * A_step,
+                                        &dma_get_A);
+                    athread_dma_iget_stride(local_B_dma + double_buffer_DMA * local_B_size, 
+                                        next_B + next_B_offset, 
+                                        sizeof(float) * local_B_size, 
+                                        sizeof(float) * blk_K/8, 
+                                        sizeof(float) * B_step,
+                                        &dma_get_B);//这个get要护
+                }
+                //trans_B
+
+                /* for(int n = 0; n < Nd; n++){
+                    for(int k = 0; k < Kd; k++){
+                        trans_B[k * Nd + n] = local_B_dma[n * Kd + k + (1 - double_buffer_DMA) * local_B_size];
+                    }
+                } */
+
+                float* origin_B = local_B_dma + (1 - double_buffer_DMA) * local_B_size;
+                for(int n = 0; n < Nd; n += 8){
+                    for(int k = 0; k < Kd; k += 8){
+                        int index = n * Kd + k;
+                        simd_load(a1, origin_B + index);
+                        index += Kd;
+                        simd_load(a2, origin_B + index);
+                        index += Kd;
+                        simd_load(a3, origin_B + index);
+                        index += Kd;
+                        simd_load(a4, origin_B + index);
+                        index += Kd;
+                        simd_load(a5, origin_B + index);
+                        index += Kd;
+                        simd_load(a6, origin_B + index);
+                        index += Kd;
+                        simd_load(a7, origin_B + index);
+                        index += Kd;
+                        simd_load(a8, origin_B + index);
+
+                        SWAP_8_8(a1,a2,a3,a4,a5,a6,a7,a8);
+
+                        index = k * Nd + n;
+                        simd_store(a1, trans_B + index);
+                        index += Nd;
+                        simd_store(a2, trans_B + index);
+                        index += Nd;
+                        simd_store(a3, trans_B + index);
+                        index += Nd;
+                        simd_store(a4, trans_B + index);
+                        index += Nd;
+                        simd_store(a5, trans_B + index);
+                        index += Nd;
+                        simd_store(a6, trans_B + index);
+                        index += Nd;
+                        simd_store(a7, trans_B + index);
+                        index += Nd;
+                        simd_store(a8, trans_B + index);
+                    }
+                }
+
+                double_buffer_A = 0;
+                double_buffer_B = 0;
+                athread_ssync_array();
+                if(cid == 0){
+                    athread_rma_row_ibcast(local_A + double_buffer_A * local_A_size, 
+                                            local_A_dma + (1 - double_buffer_DMA) * local_A_size,
+                                            sizeof(float) * local_A_size,
+                                            &rma_local_A,
+                                            &rma_A[cid]);
+                }
+                if(rid == 0){
+                    athread_rma_col_ibcast(local_B + double_buffer_B * local_B_size,
+                                            trans_B,//local_B_dma + (1 - double_buffer_DMA) * local_B_size,
+                                            sizeof(float) * local_B_size,
+                                            &rma_local_B,
+                                            &rma_B[rid]);
+                }
+
+                for(int c_R = 0; c_R < 8; c_R++){
+
+                    athread_rma_wait_value(&rma_A[c_R], 1);
+                    athread_rma_wait_value(&rma_B[c_R], 1);
+
+                    athread_ssync_array();//here must synchronization
+
+                    double_buffer_A = 1 - double_buffer_A;
+                    double_buffer_B = 1 - double_buffer_B;
+                    rma_A[c_R] = 0;
+                    rma_B[c_R] = 0;
+
+                    if(cid == c_R + 1){
+                        athread_rma_row_ibcast(local_A + double_buffer_A * local_A_size, 
+                                                local_A_dma + (1 - double_buffer_DMA) * local_A_size,
+                                                sizeof(float) * local_A_size,
+                                                &rma_local_A,
+                                                &rma_A[c_R+1]);
+                    }
+                    if(rid == c_R + 1){
+                        athread_rma_col_ibcast(local_B + double_buffer_B * local_B_size,
+                                                trans_B,//local_B_dma + (1 - double_buffer_DMA) * local_B_size,
+                                                sizeof(float) * local_B_size,
+                                                &rma_local_B,
+                                                &rma_B[c_R+1]);
+                    }
+
+                    /* for(int m = 0; m < Md; m++){
+                        for(int n = 0; n < Nd; n++){
+                            for(int k = 0; k < Kd; k++){
+                                local_C_dma[m * Nd + n] +=
+                                local_A[m * Kd + k + (1 - double_buffer_A) * local_A_size] *
+                                local_B[k * Nd + n + (1 - double_buffer_B) * local_B_size];
+                            }
+                        }
+                    } */
+                    
+                    /* for(int m = 0; m < Md; m++){
+                        for(int n = 0; n < Nd; n++){
+                            for(int k = 0; k < Kd; k++){
+                                local_C_dma[m * Nd + n] +=
+                                local_A[m * Kd + k + (1 - double_buffer_A) * local_A_size] *
+                                local_B[n * Kd + k + (1 - double_buffer_B) * local_B_size];
+                            }
+                        }
+                    } */
+
+
+                    //sgemm_8_8_8(A, B, C, K, N);
+
+                    float* comp_A = local_A + (1 - double_buffer_A) * local_A_size;
+                    float* comp_B = local_B + (1 - double_buffer_B) * local_B_size;
+                    double* comp_C = local_C;
+
+                    for(int m = 0; m < Md; m += 8){
+                        for(int n = 0; n < Nd; n += 8){
+                            for(int k = 0; k < Kd; k += 8){
+                                sgemm_8_8_8(comp_A + m * Kd + k, 
+                                            comp_B + k * Nd + n, 
+                                            comp_C + m * Nd + n, 
+                                            Kd, Nd);
+                            }
+                        }
+                    }
+                }
+                if(c_M * num_N * num_K + c_N * num_K + c_K + 1 < num_M * num_N * num_K){
+                    athread_dma_wait_value(&dma_get_A, 1);
+                    dma_get_A = 0;
+                    rma_local_A = 0;
+                    athread_dma_wait_value(&dma_get_B, 1);
+                    dma_get_B = 0;
+                    rma_local_B = 0;
+                    double_buffer_DMA = 1 - double_buffer_DMA;
+                }
+            }
+            if(curr_blk_M == blk_M && curr_blk_N == blk_N){
+                curr_C = start_C;
+                curr_N = N;
+                C_step = N - blk_N/8;
+            }
+            /* if(c_M == num_M - 1 || c_N == num_N - 1){
+                curr_C = start_Cp;
+                curr_N = Ne;
+                C_step = Ne - blk_N/8;
+            } */
+            else{
+                curr_C = start_Cp;
+                curr_N = Ne;
+                C_step = Ne - blk_N/8;
+            }
+
+            /* for(int m = 0; m < Md; m++){
+                for(int n = 0; n < Nd; n++){
+                    local_C_dma[m * Nd + n] -= local_C[m * Nd + n];
+                }
+            } */
+
+            for(int i = 0; i < Md * Nd; i += 8){
+                simd_load(vec_double, local_C + i);
+                vec_float = - (floatv8)vec_double;
+                simd_store(vec_float, local_C_dma + i);
+            }
+
+            athread_dma_put_stride(curr_C + c_M * blk_M * curr_N + c_N * blk_N,
+                                    local_C_dma,
+                                    sizeof(float) * local_C_size,
+                                    sizeof(float) * blk_N/8,
+                                    sizeof(float) * C_step);
+        }
+    }
+    athread_ssync_array();
+    ldm_free(local_A, sizeof(float) * 2 * blk_M * blk_K / 64);
+    ldm_free(local_B, sizeof(float) * 2 * blk_K * blk_N / 64);
+    ldm_free(local_C, sizeof(double) * blk_M * blk_N / 64);
+
+    ldm_free(trans_B, sizeof(float) * blk_K * blk_N / 64);
+
     ldm_free(local_A_dma, sizeof(float) * 2 * blk_M * blk_K / 64);
     ldm_free(local_B_dma, sizeof(float) * 2 * blk_K * blk_N / 64);
     ldm_free(local_C_dma, sizeof(float) * blk_M * blk_N / 64);
@@ -2597,7 +3010,6 @@ void sw_slave_gemm_crr_cgn(const int CGN_id,
 
 
 void sw_slave_gemm_crr_sli_cgn_f32(sw_gemmPara *_){
-    set_cache_size(CACHE_0KB);
     sw_gemmPara *para = (sw_gemmPara *)para_cross;
     const float *A = para->A;
     const float *Ap = para->Ap;
@@ -2660,11 +3072,9 @@ void sw_slave_gemm_crr_sli_cgn_f32(sw_gemmPara *_){
     }
     athread_ssync_node();
     sw_slave_gemm_copy_all_back_add(0, 383, sli_C, C, Cp, M, Me, N, Ne);
-    set_cache_size(CACHE_32KB);
 }
 
 void sw_slave_gemm_rrr_sli_cgn_f32(sw_gemmPara *_){
-    set_cache_size(CACHE_0KB);
     sw_gemmPara *para = (sw_gemmPara *)para_cross;
     const float *A = para->A;
     const float *Ap = para->Ap;
@@ -2727,8 +3137,73 @@ void sw_slave_gemm_rrr_sli_cgn_f32(sw_gemmPara *_){
     if(M != Me || N != Ne){
         sw_slave_gemm_copy_all_back(0, 383, C, Cp, M, Me, N, Ne);
     }
-    set_cache_size(CACHE_32KB);
 }
+
+void sw_slave_gemm_rcr_sli_cgn_f32(sw_gemmPara *_){
+    sw_gemmPara *para = (sw_gemmPara *)para_cross;
+    const float *A = para->A;
+    const float *Ap = para->Ap;
+    const float *B = para->B;
+    const float *Bp = para->Bp;
+    const float *C = para->C;
+    const float *Cp = para->Cp;
+    const float *A_cgn;
+    const float *B_cgn;
+    const float *C_cgn;
+    const int M = para->M;
+    const int Ms = para->Ms;
+    const int Me = para->Me;
+    const int N = para->N;
+    const int Ns = para->Ns;
+    const int Ne = para->Ne;
+    const int K = para->K;
+    const int Ks = para->Ks;
+    const int Ke = para->Ke;
+    const int blk_M = para->blk_M;
+    const int blk_N = para->blk_N;
+    const int blk_K = para->blk_K;
+    if(M == Me && K == Ke){
+        A_cgn = para->A_sli[CRTS_cgn];
+    }
+    else{
+        A_cgn = para->Ap_sli[CRTS_cgn];
+        sw_slave_gemm_copy_all(0, 383, A, Ap, M, Me, K, Ke);
+    }
+    if(K == Ke && N == Ne){
+        B_cgn = para->B_sli[CRTS_cgn];
+    }
+    else{
+        B_cgn = para->Bp_sli[CRTS_cgn];
+        sw_slave_gemm_copy_all(0, 383, B, Bp, N, Ne, K, Ke);//highDim lowDim
+    }
+    if(M == Me && N == Ne){
+        C_cgn = para->C_sli[CRTS_cgn];
+    }
+    else{
+        C_cgn = para->Cp_sli[CRTS_cgn];
+    }
+    const int M_cgn = para->sli_M[CRTS_cgn];
+    athread_ssync_node();
+#ifdef _SWOPS_DEBUG
+    if(CRTS_tid == 0){
+        printf("CRTS_cgn %d M_cgn %d\n",CRTS_cgn,M_cgn);
+    }
+#endif
+    if(M_cgn > 0){
+        sw_slave_gemm_rcr_asm_cgn(CRTS_cgn,
+                                    A_cgn, A_cgn, 
+                                    B_cgn, B_cgn, 
+                                    C_cgn, C_cgn,
+                                    M_cgn, M_cgn, M_cgn, blk_M,
+                                    Ne, Ne, Ne, blk_N,
+                                    Ke, Ke, Ke, blk_K);
+    }
+    athread_ssync_node();
+    if(M != Me || N != Ne){
+        sw_slave_gemm_copy_all_back(0, 383, C, Cp, M, Me, N, Ne);
+    }
+}
+
 
 
 
@@ -3447,29 +3922,30 @@ void sw_slave_bmm_rrr(sw_bmmPara *_){
     const int rem_blk_N = num_N * blk_N - N == 0 ? blk_N : N - (num_N-1) * blk_N;
     const int rem_blk_K = num_K * blk_K - K == 0 ? blk_K : K - (num_K-1) * blk_K;
 
-    const int rem_blk_M_not_aligned = rem_blk_M % 8 != 0;
-    const int rem_blk_N_not_aligned = rem_blk_N % 8 != 0;
-    const int rem_blk_K_not_aligned = rem_blk_K % 8 != 0;
-
+#ifdef _SWOPS_DEBUG
     if(myid == 0){
         printf("rem_blk_M %d rem_blk_N %d rem_blk_K %d\n", rem_blk_M, rem_blk_N, rem_blk_K);
         printf("rem_blk_M_not_aligned %d rem_blk_N_not_aligned %d rem_blk_K_not_aligned %d\n", rem_blk_M_not_aligned, rem_blk_N_not_aligned, rem_blk_K_not_aligned);
     }
-
+#endif
     //change curr_blk_MNK
     const int first_blk_M = M < blk_M ? M : blk_M;
     const int first_blk_N = N < blk_N ? N : blk_N;
     const int first_blk_K = K < blk_K ? K : blk_K;
 
-    const int first_blk_M_not_aligned = first_blk_M % 8 != 0;
-    const int first_blk_N_not_aligned = first_blk_N % 8 != 0;
-    const int first_blk_K_not_aligned = first_blk_K % 8 != 0;
+    const int rem_blk_M_not_aligned = rem_blk_M != blk_M;
+    const int rem_blk_N_not_aligned = rem_blk_N != blk_N;
+    const int rem_blk_K_not_aligned = rem_blk_K != blk_K;
 
+    const int first_blk_M_not_aligned = first_blk_M != blk_M;
+    const int first_blk_N_not_aligned = first_blk_N != blk_N;
+    const int first_blk_K_not_aligned = first_blk_K != blk_K;
+#ifdef _SWOPS_DEBUG
     if(myid == 0){
         printf("first_blk_M %d first_blk_N %d first_blk_K %d\n", first_blk_M, first_blk_N, first_blk_K);
         printf("first_blk_M_not_aligned %d first_blk_N_not_aligned %d first_blk_K_not_aligned %d\n", first_blk_M_not_aligned, first_blk_N_not_aligned, first_blk_K_not_aligned);
     }
-
+#endif
     int curr_blk_M = first_blk_M;
     int curr_blk_N = first_blk_N;
     int curr_blk_K = first_blk_K;
@@ -3512,6 +3988,9 @@ void sw_slave_bmm_rrr(sw_bmmPara *_){
 
     reply_get_A = 0;
     reply_get_B = 0;
+
+    doublev8 vec_double;
+    floatv8 vec_float;
 
     for(int local_now = local_start; local_now < local_end; ++local_now){
         start_A = src_A + MK_size * local_now;
@@ -3736,11 +4215,17 @@ void sw_slave_bmm_rrr(sw_bmmPara *_){
                 }
 
                 //double to float
-                for(int m = 0; m < blk_M; m++){
+                /* for(int m = 0; m < blk_M; m++){
                     for(int n = 0; n < blk_N; n++){
                         local_C[m * blk_N + n + (1 - double_buffer_flag_C) * local_C_size] 
                         -= local_C_temp[m * blk_N + n];
                     }
+                } */
+
+                for(int i = 0; i < blk_M * blk_N; i += 8){
+                    simd_load(vec_double, local_C_temp + i);
+                    vec_float = - (floatv8)vec_double;
+                    simd_store(vec_float, local_C + i + (1 - double_buffer_flag_C) * local_C_size);
                 }
 
                 if((curr_blk_M == first_blk_M && first_blk_M_not_aligned)
@@ -3829,30 +4314,30 @@ void sw_slave_bmm_rcr(sw_bmmPara *_){
     const int rem_blk_M = num_M * blk_M - M == 0 ? blk_M : M - (num_M-1) * blk_M;
     const int rem_blk_N = num_N * blk_N - N == 0 ? blk_N : N - (num_N-1) * blk_N;
     const int rem_blk_K = num_K * blk_K - K == 0 ? blk_K : K - (num_K-1) * blk_K;
-
-    const int rem_blk_M_not_aligned = rem_blk_M % 8 != 0;
-    const int rem_blk_N_not_aligned = rem_blk_N % 8 != 0;
-    const int rem_blk_K_not_aligned = rem_blk_K % 8 != 0;
-
+#ifdef _SWOPS_DEBUG
     if(myid == 0){
         printf("rem_blk_M %d rem_blk_N %d rem_blk_K %d\n", rem_blk_M, rem_blk_N, rem_blk_K);
         printf("rem_blk_M_not_aligned %d rem_blk_N_not_aligned %d rem_blk_K_not_aligned %d\n", rem_blk_M_not_aligned, rem_blk_N_not_aligned, rem_blk_K_not_aligned);
     }
-
+#endif
     //change curr_blk_MNK
     const int first_blk_M = M < blk_M ? M : blk_M;
     const int first_blk_N = N < blk_N ? N : blk_N;
     const int first_blk_K = K < blk_K ? K : blk_K;
 
-    const int first_blk_M_not_aligned = first_blk_M % 8 != 0;
-    const int first_blk_N_not_aligned = first_blk_N % 8 != 0;
-    const int first_blk_K_not_aligned = first_blk_K % 8 != 0;
+    const int rem_blk_M_not_aligned = rem_blk_M != blk_M;
+    const int rem_blk_N_not_aligned = rem_blk_N != blk_N;
+    const int rem_blk_K_not_aligned = rem_blk_K != blk_K;
 
+    const int first_blk_M_not_aligned = first_blk_M != blk_M;
+    const int first_blk_N_not_aligned = first_blk_N != blk_N;
+    const int first_blk_K_not_aligned = first_blk_K != blk_K;
+#ifdef _SWOPS_DEBUG
     if(myid == 0){
         printf("first_blk_M %d first_blk_N %d first_blk_K %d\n", first_blk_M, first_blk_N, first_blk_K);
         printf("first_blk_M_not_aligned %d first_blk_N_not_aligned %d first_blk_K_not_aligned %d\n", first_blk_M_not_aligned, first_blk_N_not_aligned, first_blk_K_not_aligned);
     }
-
+#endif
     int curr_blk_M = first_blk_M;
     int curr_blk_N = first_blk_N;
     int curr_blk_K = first_blk_K;
@@ -3892,6 +4377,7 @@ void sw_slave_bmm_rcr(sw_bmmPara *_){
                             &reply_get_B);
     athread_dma_wait_value(&reply_get_A, 1);
     athread_dma_wait_value(&reply_get_B, 1);
+
     reply_get_A = 0;
     reply_get_B = 0;
 
@@ -3903,6 +4389,9 @@ void sw_slave_bmm_rcr(sw_bmmPara *_){
     intv16 shuffle6 = {0x9AC5A928, 0xCDEB387B, 0xFFBB, 0,0,0,0,0,0,0,0,0,0,0,0,0};
 
     floatv8 a1,a2,a3,a4,a5,a6,a7,a8;
+
+    doublev8 vec_double;
+    floatv8 vec_float;
 
     for(int local_now = local_start; local_now < local_end; ++local_now){
 
@@ -4202,11 +4691,17 @@ void sw_slave_bmm_rcr(sw_bmmPara *_){
                 }
 
                 //double to float
-                for(int m = 0; m < blk_M; m++){
+                /* for(int m = 0; m < blk_M; m++){
                     for(int n = 0; n < blk_N; n++){
                         local_C[m * blk_N + n + (1 - double_buffer_flag_C) * local_C_size] 
                         -= local_C_temp[m * blk_N + n];
                     }
+                } */
+
+                for(int i = 0; i < blk_M * blk_N; i += 8){
+                    simd_load(vec_double, local_C_temp + i);
+                    vec_float = - (floatv8)vec_double;
+                    simd_store(vec_float, local_C + i + (1 - double_buffer_flag_C) * local_C_size);
                 }
 
                 if((curr_blk_M == first_blk_M && first_blk_M_not_aligned)
@@ -4296,30 +4791,30 @@ void sw_slave_bmm_crr(sw_bmmPara *_){
     const int rem_blk_M = num_M * blk_M - M == 0 ? blk_M : M - (num_M-1) * blk_M;
     const int rem_blk_N = num_N * blk_N - N == 0 ? blk_N : N - (num_N-1) * blk_N;
     const int rem_blk_K = num_K * blk_K - K == 0 ? blk_K : K - (num_K-1) * blk_K;
-
-    const int rem_blk_M_not_aligned = rem_blk_M % 8 != 0;
-    const int rem_blk_N_not_aligned = rem_blk_N % 8 != 0;
-    const int rem_blk_K_not_aligned = rem_blk_K % 8 != 0;
-
+#ifdef _SWOPS_DEBUG
     if(myid == 0){
         printf("rem_blk_M %d rem_blk_N %d rem_blk_K %d\n", rem_blk_M, rem_blk_N, rem_blk_K);
         printf("rem_blk_M_not_aligned %d rem_blk_N_not_aligned %d rem_blk_K_not_aligned %d\n", rem_blk_M_not_aligned, rem_blk_N_not_aligned, rem_blk_K_not_aligned);
     }
-
+#endif
     //change curr_blk_MNK
     const int first_blk_M = M < blk_M ? M : blk_M;
     const int first_blk_N = N < blk_N ? N : blk_N;
     const int first_blk_K = K < blk_K ? K : blk_K;
 
-    const int first_blk_M_not_aligned = first_blk_M % 8 != 0;
-    const int first_blk_N_not_aligned = first_blk_N % 8 != 0;
-    const int first_blk_K_not_aligned = first_blk_K % 8 != 0;
+    const int rem_blk_M_not_aligned = rem_blk_M != blk_M;
+    const int rem_blk_N_not_aligned = rem_blk_N != blk_N;
+    const int rem_blk_K_not_aligned = rem_blk_K != blk_K;
 
+    const int first_blk_M_not_aligned = first_blk_M != blk_M;
+    const int first_blk_N_not_aligned = first_blk_N != blk_N;
+    const int first_blk_K_not_aligned = first_blk_K != blk_K;
+#ifdef _SWOPS_DEBUG
     if(myid == 0){
         printf("first_blk_M %d first_blk_N %d first_blk_K %d\n", first_blk_M, first_blk_N, first_blk_K);
         printf("first_blk_M_not_aligned %d first_blk_N_not_aligned %d first_blk_K_not_aligned %d\n", first_blk_M_not_aligned, first_blk_N_not_aligned, first_blk_K_not_aligned);
     }
-
+#endif
     int curr_blk_M = first_blk_M;
     int curr_blk_N = first_blk_N;
     int curr_blk_K = first_blk_K;
@@ -4371,6 +4866,9 @@ void sw_slave_bmm_crr(sw_bmmPara *_){
     intv16 shuffle6 = {0x9AC5A928, 0xCDEB387B, 0xFFBB, 0,0,0,0,0,0,0,0,0,0,0,0,0};
 
     floatv8 a1,a2,a3,a4,a5,a6,a7,a8;
+
+    doublev8 vec_double;
+    floatv8 vec_float;
 
     for(int local_now = local_start; local_now < local_end; ++local_now){
 
@@ -4655,11 +5153,17 @@ void sw_slave_bmm_crr(sw_bmmPara *_){
                 }
 
                 //double to float
-                for(int m = 0; m < blk_M; m++){
+                /* for(int m = 0; m < blk_M; m++){
                     for(int n = 0; n < blk_N; n++){
                         local_C[m * blk_N + n + (1 - double_buffer_flag_C) * local_C_size] 
                         -= local_C_temp[m * blk_N + n];
                     }
+                } */
+
+                for(int i = 0; i < blk_M * blk_N; i += 8){
+                    simd_load(vec_double, local_C_temp + i);
+                    vec_float = - (floatv8)vec_double;
+                    simd_store(vec_float, local_C + i + (1 - double_buffer_flag_C) * local_C_size);
                 }
 
                 if((curr_blk_M == first_blk_M && first_blk_M_not_aligned)
